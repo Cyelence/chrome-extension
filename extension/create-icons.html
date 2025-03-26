@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Generate Icons</title>
+</head>
+<body>
+  <h1>Icon Generator</h1>
+  <div id="output"></div>
+  <script src="js/create-icons.js"></script>
+  <script>
+    // Override console.log to display the data URLs
+    const originalLog = console.log;
+    console.log = function() {
+      originalLog.apply(console, arguments);
+      const output = document.getElementById('output');
+      const text = Array.from(arguments).join(' ');
+      if (text.includes('data:image/png;base64,')) {
+        const img = document.createElement('img');
+        img.src = text.split('created: ')[1];
+        output.appendChild(img);
+        output.appendChild(document.createElement('br'));
+      }
+    };
+  </script>
+</body>
+</html> 
