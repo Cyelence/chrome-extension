@@ -21,10 +21,10 @@ async function saveBase64ToFile(base64Data, filename) {
     
     const blob = new Blob(byteArrays, { type: 'image/png' });
     
-    // Create download link
+    // Create download link with the correct path
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = filename;
+    link.download = `images/${filename}`; // Save directly to images folder
     
     // Trigger download
     document.body.appendChild(link);
@@ -76,7 +76,7 @@ async function createAndSaveIcons() {
         ctx.lineWidth = size * 0.1;
         ctx.stroke();
         
-        // Save the icon
+        // Save the icon with lowercase name
         const dataUrl = canvas.toDataURL('image/png');
         await saveBase64ToFile(dataUrl, `icon${size}.png`);
     }
