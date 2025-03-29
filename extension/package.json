@@ -1,0 +1,20 @@
+{
+  "name": "smart-shopping-assistant",
+  "version": "0.1.0",
+  "description": "Chrome extension for finding visually similar items and getting personalized recommendations",
+  "scripts": {
+    "build": "tsc && node scripts/build.js",
+    "watch": "tsc -w",
+    "clean": "rimraf dist",
+    "dev": "npm run clean && tsc && node scripts/build.js --watch"
+  },
+  "dependencies": {
+    "@tensorflow/tfjs": "^4.17.0",
+    "@types/chrome": "^0.0.262"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.2",
+    "rimraf": "^5.0.1",
+    "fs-extra": "^11.1.1"
+  }
+} 

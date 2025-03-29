@@ -163,107 +163,74 @@ function loadScript(src) {
   });
 }
 
-// Function to load required libraries by injecting them directly
+// Function to load required libraries with fallbacks
 async function loadRequiredLibraries() {
-  console.log('Starting direct library injection process...');
+  console.log('Starting library loading process...');
   
-  // Helper function to load a library from URL and inject as a script tag
-  const injectLibraryFromCDN = async (urls, globalVar, timeout = 8000) => {
-    // Convert single URL to array for consistent handling
-    const urlList = Array.isArray(urls) ? urls : [urls];
-    let lastError = null;
-    
-    // Try each URL in sequence
-    for (const url of urlList) {
-      try {
-        console.log(`Attempting to load from: ${url}`);
-        
-        // Create script tag
-        const script = document.createElement('script');
-        script.src = url;
-        script.async = false;
-        script.defer = false;
-        
-        // Wait for script to load
-        await new Promise((resolve, reject) => {
-          const timeoutId = setTimeout(() => {
-            console.error(`Timeout loading ${url}`);
-            reject(new Error(`Timeout loading ${url}`));
-          }, timeout);
-          
-          script.onload = () => {
-            console.log(`Successfully loaded library from: ${url}`);
-            clearTimeout(timeoutId);
-            resolve();
-          };
-          
-          script.onerror = (error) => {
-            console.error(`Error loading ${url}:`, error);
-            clearTimeout(timeoutId);
-            reject(new Error(`Failed to load ${url}`));
-          };
-          
-          document.head.appendChild(script);
-        });
-        
-        // Verify global variable exists after short delay
-        await new Promise((resolve, reject) => {
-          setTimeout(() => {
-            if (typeof window[globalVar] === 'undefined') {
-              console.error(`${globalVar} not defined after loading ${url}`);
-              reject(new Error(`${globalVar} not defined after loading ${url}`));
-            } else {
-              console.log(`✅ Verified ${globalVar} is available from ${url}`);
-              resolve();
-            }
-          }, 200); // Short delay to ensure scripts are fully initialized
-        });
-        
-        // If we get here, the library loaded successfully
-        return;
-        
-      } catch (error) {
-        console.warn(`Failed to load from ${url}:`, error);
-        lastError = error;
-        // Continue to next URL
-      }
-    }
-    
-    // If we get here, all URLs failed
-    throw new Error(`Failed to load ${globalVar} from any source: ${lastError?.message}`);
+  // Helper function to verify script loading
+  const verifyScript = async (scriptUrl, globalVar, timeout = 5000) => {
+    return new Promise((resolve, reject) => {
+      console.log(`Creating script element for: ${scriptUrl}`);
+      const script = document.createElement('script');
+      script.src = scriptUrl;
+      script.async = false; // Load scripts in order
+      script.defer = false; // We want immediate loading
+      
+      const timeoutId = setTimeout(() => {
+        console.error(`Timeout loading ${scriptUrl}`);
+        reject(new Error(`Timeout loading ${scriptUrl}`));
+      }, timeout);
+      
+      script.onload = () => {
+        console.log(`Script loaded successfully: ${scriptUrl}`);
+        clearTimeout(timeoutId);
+        // Verify the global variable is actually defined
+        console.log(`Checking if ${globalVar} is defined:`, typeof window[globalVar] !== 'undefined');
+        if (typeof window[globalVar] === 'undefined') {
+          console.error(`${globalVar} not defined after loading ${scriptUrl}`);
+          reject(new Error(`${globalVar} not defined after loading ${scriptUrl}`));
+          return;
+        }
+        resolve();
+      };
+      
+      script.onerror = (error) => {
+        console.error(`Error loading ${scriptUrl}:`, error);
+        clearTimeout(timeoutId);
+        reject(new Error(`Error loading ${scriptUrl}: ${error.type}`));
+      };
+      
+      console.log(`Appending script to document head: ${scriptUrl}`);
+      document.head.appendChild(script);
+    });
   };
   
   try {
-    // TensorFlow.js CDN URLs with fallbacks
-    const tfUrls = [
-      'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0/dist/tf.min.js',
-      'https://unpkg.com/@tensorflow/tfjs@4.2.0/dist/tf.min.js',
-      'https://cdnjs.cloudflare.com/ajax/libs/tensorflow/4.2.0/tf.min.js'
-    ];
-    
-    // MobileNet CDN URLs with fallbacks
-    const mobilenetUrls = [
-      'https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.0/dist/mobilenet.min.js',
-      'https://unpkg.com/@tensorflow-models/mobilenet@2.1.0/dist/mobilenet.min.js'
-    ];
-    
     // Load TensorFlow.js first
-    console.log('Loading TensorFlow.js from CDN');
-    await injectLibraryFromCDN(tfUrls, 'tf');
+    const tfUrl = chrome.runtime.getURL('/js/lib/tf.min.js');
+    console.log('>>> DEBUG: Generated TensorFlow.js URL:', tfUrl);
+    console.log('Loading TensorFlow.js from:', tfUrl);
+    await verifyScript(tfUrl, 'tf');
+    console.log('TensorFlow.js loaded successfully:', tf.version);
+    
+    // Load MobileNet after TensorFlow.js
+    const mobilenetUrl = chrome.runtime.getURL('/js/lib/mobilenet.min.js');
+    console.log('>>> DEBUG: Generated MobileNet URL:', mobilenetUrl);
+    console.log('Loading MobileNet from:', mobilenetUrl);
+    await verifyScript(mobilenetUrl, 'mobilenet');
+    console.log('MobileNet loaded successfully');
+    
+    // Final verification
+    if (typeof tf === 'undefined' || typeof mobilenet === 'undefined') {
+      throw new Error('Libraries not properly initialized after loading');
+    }
     
     // Initialize TensorFlow.js backend
-    console.log('Initializing TensorFlow.js backend');
     await tf.ready();
     console.log('TensorFlow.js backend initialized:', tf.getBackend());
     
-    // Load MobileNet after TensorFlow.js
-    console.log('Loading MobileNet from CDN');
-    await injectLibraryFromCDN(mobilenetUrls, 'mobilenet');
-    
-    console.log('🎉 Successfully loaded all required libraries!');
-    
   } catch (error) {
-    console.error('❌ Error in loadRequiredLibraries:', error);
+    console.error('Error in loadRequiredLibraries:', error);
     throw new Error(`Failed to initialize AI libraries: ${error.message}`);
   }
 }
