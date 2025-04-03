@@ -1,298 +1,141 @@
-// Store global variables for tracking scan state
-let isScanning = false;
-let hasScanned = false;
+/**
+ * Smart Shopping Assistant Content Script
+ * 
+ * This script runs on web pages to analyze product images and find visual matches.
+ * It uses TensorFlow.js and MobileNet for image feature extraction and similarity comparison.
+ */
 
-// Performance monitoring
-let scanStartTime = 0;
-const OVERALL_TIMEOUT = 60000; // 60 seconds max for the entire process
+import { CONFIG } from './modules/config.js';
+import { State } from './modules/state.js';
+import { loadRequiredLibraries } from './modules/libraryLoader.js';
+import { findProductItems } from './modules/productDetector.js';
+import { loadImageFromDataUrl, processProductBatch } from './modules/imageProcessor.js';
+import { checkBrowserCompatibility } from './modules/browserCompatibility.js';
 
-// Listen for messages from the extension popup
+// ===== Message Handling =====
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Handle element scrolling
   if (message.type === 'scrollToElement') {
-    const element = document.getElementById(message.elementId);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      // Highlight the element temporarily
-      const originalBorder = element.style.border;
-      element.style.border = '3px solid #4285f4';
-      setTimeout(() => {
-        element.style.border = originalBorder;
-      }, 2000);
-    }
-    return true; // Keep the message channel open for sendResponse
+    return handleScrollToElement(message, sendResponse);
   }
   
-  // Handle scan requests from popup
+  // Handle scan requests
   if (message.type === 'startScan') {
-    console.log('Received scan request with reference image');
-    
-    // Check if we're already scanning to avoid duplicate scans
-    if (isScanning) {
-      console.log('Scan already in progress, rejecting new scan request');
-      sendResponse({ success: false, error: 'Scan already in progress' });
-      return true;
-    }
-    
-    isScanning = true;
-    scanStartTime = performance.now();
-    console.log('Scan started at:', new Date().toISOString());
-    
-    // Progress tracking
-    const sendProgressUpdate = (stage) => {
-      chrome.runtime.sendMessage({
-        type: 'scanProgress',
-        stage: stage,
-        timestamp: new Date().toISOString()
-      });
-    };
-    
-    // Get the reference image from the message
-    const referenceImage = message.referenceImage;
-    
-    if (!referenceImage) {
-      console.error('No reference image provided in scan request');
-      isScanning = false;
-      sendResponse({ success: false, error: 'No reference image provided' });
-      return true;
-    }
-    
-    // Create a timeout promise
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Image scanning process timed out. The page might be too complex.')), OVERALL_TIMEOUT);
-    });
-    
-    // Perform the scan with timeout
-    Promise.race([
-      scanPageForSimilarItems(referenceImage, sendProgressUpdate),
-      timeoutPromise
-    ])
-      .then(results => {
-        isScanning = false;
-        hasScanned = true;
-        const scanDuration = Math.round(performance.now() - scanStartTime);
-        console.log(`Scan completed in ${scanDuration}ms with ${results.length} results`);
-        
-        // Send results back to popup
-        chrome.runtime.sendMessage({
-          type: 'scanResults',
-          results: results,
-          scanDuration: scanDuration
-        });
-        
-        sendResponse({ success: true });
-      })
-      .catch(error => {
-        console.error('Error scanning page:', error);
-        isScanning = false;
-        
-        // Extract a more specific error message if available
-        let errorMessage = error.message || 'Unknown error occurred during scanning';
-        if (errorMessage.length > 100) {
-          // Truncate very long error messages for readability
-          errorMessage = errorMessage.substring(0, 100) + '...';
-        }
-        
-        chrome.runtime.sendMessage({
-          type: 'scanResults',
-          results: [],
-          error: errorMessage,
-          scanDuration: Math.round(performance.now() - scanStartTime)
-        });
-        
-        sendResponse({ success: false, error: errorMessage });
-      });
-    
-    // Keep the message channel open for async response
-    return true;
+    return handleScanRequest(message, sendResponse);
   }
+  
+  return false;
 });
 
-// Function to dynamically load a script
-function loadScript(src) {
-  console.log(`Starting to load script: ${src}`);
-  return new Promise((resolve, reject) => {
-    // Check if script is already loaded
-    const existingScript = document.querySelector(`script[src="${src}"]`);
-    if (existingScript) {
-      console.log(`Script already loaded: ${src}`);
-      console.log('Script element:', existingScript);
-      resolve();
-      return;
-    }
+/**
+ * Handles scrolling to an element on the page
+ */
+function handleScrollToElement(message, sendResponse) {
+  const element = document.getElementById(message.elementId);
+  if (element) {
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
     
-    const script = document.createElement('script');
-    script.src = src;
-    script.async = true;
-    script.defer = true;
-    
-    // Add error handling
-    script.onerror = (e) => {
-      console.error(`Failed to load script: ${src}`, e);
-      console.error('Error details:', {
-        type: e.type,
-        target: e.target,
-        currentTarget: e.currentTarget
-      });
-      reject(new Error(`Failed to load required script: ${src}`));
-    };
-    
-    // Add load handling
-    script.onload = () => {
-      console.log(`Script loaded successfully: ${src}`);
-      console.log('Script element:', script);
-      script.setAttribute('loaded', 'true');
-      resolve();
-    };
-    
-    // Add to document
-    console.log('Adding script to document head');
-    document.head.appendChild(script);
-    
-    // Add a timeout as a backup
+    // Highlight the element temporarily
+    const originalBorder = element.style.border;
+    element.style.border = '3px solid #4285f4';
     setTimeout(() => {
-      if (!script.hasAttribute('loaded')) {
-        console.warn(`Script load timeout: ${src}`);
-        console.warn('Script element state:', {
-          loaded: script.hasAttribute('loaded'),
-          readyState: script.readyState,
-          parentNode: script.parentNode
-        });
-        reject(new Error(`Timeout loading script: ${src}`));
-      }
-    }, 15000); // 15 second timeout
-  });
+      element.style.border = originalBorder;
+    }, 2000);
+  }
+  
+  return true; // Keep the message channel open for sendResponse
 }
 
-// Function to load required libraries by injecting them directly
-async function loadRequiredLibraries() {
-  console.log('Starting direct library injection process...');
+/**
+ * Handles a request to scan the page for similar items
+ */
+function handleScanRequest(message, sendResponse) {
+  console.log('Received scan request with reference image');
   
-  // Helper function to load a library from URL and inject as a script tag
-  const injectLibraryFromCDN = async (urls, globalVar, timeout = 8000) => {
-    // Convert single URL to array for consistent handling
-    const urlList = Array.isArray(urls) ? urls : [urls];
-    let lastError = null;
-    
-    // Try each URL in sequence
-    for (const url of urlList) {
-      try {
-        console.log(`Attempting to load from: ${url}`);
-        
-        // Create script tag
-        const script = document.createElement('script');
-        script.src = url;
-        script.async = false;
-        script.defer = false;
-        
-        // Wait for script to load
-        await new Promise((resolve, reject) => {
-          const timeoutId = setTimeout(() => {
-            console.error(`Timeout loading ${url}`);
-            reject(new Error(`Timeout loading ${url}`));
-          }, timeout);
-          
-          script.onload = () => {
-            console.log(`Successfully loaded library from: ${url}`);
-            clearTimeout(timeoutId);
-            resolve();
-          };
-          
-          script.onerror = (error) => {
-            console.error(`Error loading ${url}:`, error);
-            clearTimeout(timeoutId);
-            reject(new Error(`Failed to load ${url}`));
-          };
-          
-          document.head.appendChild(script);
-        });
-        
-        // Verify global variable exists after short delay
-        await new Promise((resolve, reject) => {
-          setTimeout(() => {
-            if (typeof window[globalVar] === 'undefined') {
-              console.error(`${globalVar} not defined after loading ${url}`);
-              reject(new Error(`${globalVar} not defined after loading ${url}`));
-            } else {
-              console.log(`✅ Verified ${globalVar} is available from ${url}`);
-              resolve();
-            }
-          }, 200); // Short delay to ensure scripts are fully initialized
-        });
-        
-        // If we get here, the library loaded successfully
-        return;
-        
-      } catch (error) {
-        console.warn(`Failed to load from ${url}:`, error);
-        lastError = error;
-        // Continue to next URL
-      }
-    }
-    
-    // If we get here, all URLs failed
-    throw new Error(`Failed to load ${globalVar} from any source: ${lastError?.message}`);
+  // Check if we're already scanning to avoid duplicate scans
+  if (State.isScanning) {
+    console.log('Scan already in progress, rejecting new scan request');
+    sendResponse({ success: false, error: 'Scan already in progress' });
+    return true;
+  }
+  
+  State.startScan();
+  
+  // Progress tracking callback
+  const sendProgressUpdate = (stage) => {
+    chrome.runtime.sendMessage({
+      type: 'scanProgress',
+      stage: stage,
+      timestamp: new Date().toISOString()
+    });
   };
   
-  try {
-    // TensorFlow.js CDN URLs with fallbacks
-    const tfUrls = [
-      'https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0/dist/tf.min.js',
-      'https://unpkg.com/@tensorflow/tfjs@4.2.0/dist/tf.min.js',
-      'https://cdnjs.cloudflare.com/ajax/libs/tensorflow/4.2.0/tf.min.js'
-    ];
-    
-    // MobileNet CDN URLs with fallbacks
-    const mobilenetUrls = [
-      'https://cdn.jsdelivr.net/npm/@tensorflow-models/mobilenet@2.1.0/dist/mobilenet.min.js',
-      'https://unpkg.com/@tensorflow-models/mobilenet@2.1.0/dist/mobilenet.min.js'
-    ];
-    
-    // Load TensorFlow.js first
-    console.log('Loading TensorFlow.js from CDN');
-    await injectLibraryFromCDN(tfUrls, 'tf');
-    
-    // Initialize TensorFlow.js backend
-    console.log('Initializing TensorFlow.js backend');
-    await tf.ready();
-    console.log('TensorFlow.js backend initialized:', tf.getBackend());
-    
-    // Load MobileNet after TensorFlow.js
-    console.log('Loading MobileNet from CDN');
-    await injectLibraryFromCDN(mobilenetUrls, 'mobilenet');
-    
-    console.log('🎉 Successfully loaded all required libraries!');
-    
-  } catch (error) {
-    console.error('❌ Error in loadRequiredLibraries:', error);
-    throw new Error(`Failed to initialize AI libraries: ${error.message}`);
-  }
-}
-
-// Function to check for required browser features
-function checkBrowserCompatibility() {
-  // Check for WebAssembly (needed for TensorFlow.js)
-  if (typeof WebAssembly === 'undefined') {
-    throw new Error('Your browser does not support WebAssembly, which is required for image analysis.');
+  // Get the reference image from the message
+  const referenceImage = message.referenceImage;
+  
+  if (!referenceImage) {
+    console.error('No reference image provided in scan request');
+    State.isScanning = false;
+    sendResponse({ success: false, error: 'No reference image provided' });
+    return true;
   }
   
-  // Check for Canvas API (needed for image processing)
-  const canvas = document.createElement('canvas');
-  if (!canvas || !canvas.getContext || !canvas.getContext('2d')) {
-    throw new Error('Your browser does not support Canvas API, which is required for image analysis.');
-  }
+  // Create a timeout promise
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Image scanning process timed out. The page might be too complex.')), CONFIG.SCAN_TIMEOUT);
+  });
   
-  // Check for other required APIs
-  if (!window.Blob || !window.URL || !window.FileReader) {
-    throw new Error('Your browser does not support required APIs for image analysis.');
-  }
+  // Perform the scan with timeout
+  Promise.race([
+    scanPageForSimilarItems(referenceImage, sendProgressUpdate),
+    timeoutPromise
+  ])
+    .then(results => {
+      const scanDuration = State.endScan();
+      console.log(`Scan completed in ${scanDuration}ms with ${results.length} results`);
+      
+      // Send results back to popup
+      chrome.runtime.sendMessage({
+        type: 'scanResults',
+        results: results,
+        scanDuration: scanDuration
+      });
+      
+      sendResponse({ success: true });
+    })
+    .catch(error => {
+      console.error('Error scanning page:', error);
+      State.isScanning = false;
+      
+      // Extract a more specific error message if available
+      let errorMessage = error.message || 'Unknown error occurred during scanning';
+      if (errorMessage.length > 100) {
+        // Truncate very long error messages for readability
+        errorMessage = errorMessage.substring(0, 100) + '...';
+      }
+      
+      chrome.runtime.sendMessage({
+        type: 'scanResults',
+        results: [],
+        error: errorMessage,
+        scanDuration: State.getElapsedTime()
+      });
+      
+      sendResponse({ success: false, error: errorMessage });
+    });
   
-  console.log('Browser compatibility check passed');
+  // Keep the message channel open for async response
   return true;
 }
 
-// Function to scan the page for items similar to the reference image
+/**
+ * Scans the page for items similar to the reference image
+ * @param {string} referenceImageDataUrl - Data URL of reference image
+ * @param {Function} progressCallback - Callback for progress updates
+ * @returns {Promise<Array>} - Array of matching products
+ */
 async function scanPageForSimilarItems(referenceImageDataUrl, progressCallback = null) {
-  // Start performance monitoring
+  // Initialize performance tracking
   const startTime = performance.now();
   const logPerformance = (operation) => {
     console.log(`${operation} completed in ${Math.round(performance.now() - startTime)}ms`);
@@ -309,12 +152,12 @@ async function scanPageForSimilarItems(referenceImageDataUrl, progressCallback =
   updateProgress('Starting scan');
   
   try {
-    // Check browser compatibility
+    // Step 1: Check browser compatibility
     console.log('Checking browser compatibility...');
     checkBrowserCompatibility();
     updateProgress('Checking compatibility');
     
-    // Load required libraries with improved error handling
+    // Step 2: Load required libraries
     try {
       updateProgress('Loading AI libraries');
       console.log('Starting library loading process...');
@@ -327,7 +170,7 @@ async function scanPageForSimilarItems(referenceImageDataUrl, progressCallback =
       throw new Error('Failed to load required AI libraries. This may be due to network issues or content restrictions on this site.');
     }
     
-    // Check if MobileNet is available
+    // Step 3: Verify libraries are available
     console.log('Checking MobileNet availability...');
     if (typeof mobilenet === 'undefined') {
       console.error('MobileNet not available after loading script');
@@ -341,7 +184,7 @@ async function scanPageForSimilarItems(referenceImageDataUrl, progressCallback =
     
     updateProgress('Loading AI model');
     
-    // Load MobileNet model for image feature extraction
+    // Step 4: Load MobileNet model
     let model;
     try {
       console.log('Loading MobileNet model...');
@@ -366,21 +209,10 @@ async function scanPageForSimilarItems(referenceImageDataUrl, progressCallback =
     
     updateProgress('Processing reference image');
     
-    // Convert the reference image data URL to an image element
-    const referenceImg = new Image();
-    referenceImg.crossOrigin = 'anonymous';
-    
+    // Step 5: Load and process reference image
+    let referenceImg;
     try {
-      // Load the reference image
-      const imageLoadPromise = new Promise((resolve, reject) => {
-        referenceImg.onload = resolve;
-        referenceImg.onerror = (e) => reject(new Error(`Failed to load reference image: ${e.type}`));
-        // Set a timeout in case the image never loads
-        setTimeout(() => reject(new Error('Timeout loading reference image')), 10000);
-      });
-      
-      referenceImg.src = referenceImageDataUrl;
-      await imageLoadPromise;
+      referenceImg = await loadImageFromDataUrl(referenceImageDataUrl);
       console.log('Reference image loaded successfully');
       logPerformance('Reference image loading');
     } catch (imgError) {
@@ -388,7 +220,7 @@ async function scanPageForSimilarItems(referenceImageDataUrl, progressCallback =
       throw new Error('Could not process the uploaded image. Try a different image format or size.');
     }
     
-    // Get the feature vector for the reference image
+    // Step 6: Extract features from reference image
     let referenceFeatures;
     try {
       console.log('Extracting features from reference image...');
@@ -401,7 +233,7 @@ async function scanPageForSimilarItems(referenceImageDataUrl, progressCallback =
       throw new Error('Could not analyze the reference image. The image may be too complex or in an unsupported format.');
     }
     
-    // Find all product images on the page
+    // Step 7: Find product items on the page
     console.log('Finding product items on page...');
     updateProgress('Finding products on page');
     const productItems = findProductItems();
@@ -414,70 +246,37 @@ async function scanPageForSimilarItems(referenceImageDataUrl, progressCallback =
     
     updateProgress('Comparing products');
     
-    // Compare each product image to the reference image
+    // Step 8: Process products in batches
     const results = [];
     const totalItems = productItems.length;
     let processedItems = 0;
     
     // Process items in batches to avoid blocking the UI
-    const BATCH_SIZE = 5;
-    
-    for (let i = 0; i < productItems.length; i += BATCH_SIZE) {
-      const batch = productItems.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < productItems.length; i += CONFIG.BATCH_SIZE) {
+      const batch = productItems.slice(i, i + CONFIG.BATCH_SIZE);
       
       // Process batch
-      await Promise.all(batch.map(async (item) => {
-        try {
-          // Skip items without images
-          if (!item.image || !item.imageElement) return;
-          
-          // Skip images that are too small
-          if (item.imageElement.naturalWidth < 30 || item.imageElement.naturalHeight < 30) return;
-          
-          console.log(`Processing product: ${item.title || 'Unnamed product'}`);
-          
-          // Extract features from the product image
-          const productFeatures = await model.infer(item.imageElement, true);
-          
-          // Calculate similarity score (cosine similarity)
-          const score = calculateCosineSimilarity(
-            await referenceFeatures.data(),
-            await productFeatures.data()
-          );
-          
-          console.log(`Similarity score: ${score.toFixed(2)} for ${item.title || 'Unnamed product'}`);
-          
-          // Add to results if score is above threshold
-          if (score > 0.5) { // Adjust threshold as needed
-            results.push({
-              id: item.id,
-              image: item.image,
-              title: item.title,
-              price: item.price,
-              score: score
-            });
-          }
-        } catch (itemError) {
-          console.error('Error processing item:', itemError);
-          // Continue with other items
-        }
-        
-        // Update progress count
-        processedItems++;
-        if (processedItems % 10 === 0 || processedItems === totalItems) {
-          updateProgress(`Analyzed ${processedItems}/${totalItems} items`);
-        }
-      }));
+      const batchResults = await processProductBatch(batch, referenceFeatures, model);
+      results.push(...batchResults);
+      
+      // Update progress count
+      processedItems += batch.length;
+      if (processedItems % 10 === 0 || processedItems === totalItems) {
+        updateProgress(`Analyzed ${processedItems}/${totalItems} items`);
+      }
       
       // Small delay between batches to let the UI breathe
-      if (i + BATCH_SIZE < productItems.length) {
+      if (i + CONFIG.BATCH_SIZE < productItems.length) {
         await new Promise(resolve => setTimeout(resolve, 10));
       }
     }
     
     logPerformance('Product comparison');
     
-    // Sort results by similarity score (highest first)
+    // Step 9: Clean up resources
+    referenceFeatures.dispose();
+    
+    // Step 10: Sort and finalize results
     results.sort((a, b) => b.score - a.score);
     
     console.log(`Found ${results.length} matching items`);
@@ -489,149 +288,6 @@ async function scanPageForSimilarItems(referenceImageDataUrl, progressCallback =
     console.error('Error in scanPageForSimilarItems:', error);
     throw error;
   }
-}
-
-// Function to find all product items on the page
-function findProductItems() {
-  const items = [];
-  const itemId = 'product-item-';
-  let idCounter = 0;
-  
-  // Common selectors for product listings (we'll improve this over time)
-  const productContainers = document.querySelectorAll(
-    // Common e-commerce sites selectors
-    '.product, .product-item, .product-card, .item, [data-testid="product-card"], ' +
-    '.grid-item, .product-grid-item, .product-container, article, .card, ' +
-    // Amazon specific
-    '.s-result-item, .s-search-result, ' +
-    // Etsy specific
-    '.listing-link, .v2-listing-card, ' +
-    // eBay specific
-    '.s-item, .s-item__pl-on-bottom, ' + 
-    // Generic e-commerce
-    '[data-component-type="s-search-result"], [data-item-id]'
-  );
-  
-  productContainers.forEach(container => {
-    // Find image
-    const imgElement = container.querySelector('img');
-    if (!imgElement || !imgElement.src) return;
-    
-    // Skip tiny images (likely not product images)
-    if (imgElement.naturalWidth < 50 || imgElement.naturalHeight < 50) return;
-    
-    // Skip data URI images (often placeholders)
-    if (imgElement.src.startsWith('data:')) return;
-    
-    // Generate a unique ID for this element if it doesn't have one
-    if (!container.id) {
-      container.id = itemId + idCounter++;
-    }
-    
-    // Find title
-    let title = '';
-    const titleElement = container.querySelector('h1, h2, h3, h4, .product-title, .title, .name, .a-text-normal');
-    if (titleElement) {
-      title = titleElement.textContent.trim();
-    }
-    
-    // Find price
-    let price = '';
-    const priceElement = container.querySelector(
-      '.price, [data-testid="price"], .product-price, .amount, .current-price, .a-price'
-    );
-    if (priceElement) {
-      price = priceElement.textContent.trim();
-    }
-    
-    items.push({
-      id: container.id,
-      image: imgElement.src,
-      imageElement: imgElement,
-      title: title,
-      price: price,
-      element: container
-    });
-  });
-  
-  console.log(`Found ${items.length} products using container selectors`);
-  
-  // If no product containers were found, try a more general approach
-  if (items.length === 0) {
-    // Get all images on the page that are reasonably sized
-    document.querySelectorAll('img').forEach(img => {
-      // Skip inappropriate images
-      if (img.naturalWidth < 100 || img.naturalHeight < 100) return;
-      if (!img.src || img.src.startsWith('data:')) return;
-      
-      // Skip likely non-product images
-      if (img.src.includes('logo') || img.src.includes('icon') || img.src.includes('banner')) return;
-      
-      // Find a parent container
-      let container = img.parentElement;
-      for (let i = 0; i < 3 && container; i++) {
-        if (!container.id) {
-          container.id = itemId + idCounter++;
-        }
-        
-        // Try to find title and price near the image
-        let title = '';
-        let price = '';
-        
-        // Look for text nearby that might be a title
-        const nearbyText = container.textContent.trim();
-        if (nearbyText && nearbyText.length < 200) {
-          title = nearbyText;
-        }
-        
-        // Look for price pattern
-        const priceMatch = nearbyText.match(/\$\d+(\.\d{2})?/);
-        if (priceMatch) {
-          price = priceMatch[0];
-        }
-        
-        items.push({
-          id: container.id,
-          image: img.src,
-          imageElement: img,
-          title: title,
-          price: price,
-          element: container
-        });
-        
-        break;
-      }
-    });
-  }
-  
-  console.log(`Total products found: ${items.length}`);
-  return items;
-}
-
-// Function to calculate cosine similarity between two feature vectors
-function calculateCosineSimilarity(vec1, vec2) {
-  if (vec1.length !== vec2.length) {
-    throw new Error('Vectors must have the same length');
-  }
-  
-  let dotProduct = 0;
-  let mag1 = 0;
-  let mag2 = 0;
-  
-  for (let i = 0; i < vec1.length; i++) {
-    dotProduct += vec1[i] * vec2[i];
-    mag1 += vec1[i] * vec1[i];
-    mag2 += vec2[i] * vec2[i];
-  }
-  
-  mag1 = Math.sqrt(mag1);
-  mag2 = Math.sqrt(mag2);
-  
-  if (mag1 === 0 || mag2 === 0) {
-    return 0;
-  }
-  
-  return dotProduct / (mag1 * mag2);
 }
 
 // Log that the content script has loaded

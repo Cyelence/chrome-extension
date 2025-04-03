@@ -6,9 +6,23 @@
   "permissions": ["activeTab", "storage", "scripting"],
   "host_permissions": ["<all_urls>"],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'",
-    "sandbox": "sandbox allow-scripts allow-forms allow-popups allow-modals; script-src 'self' 'unsafe-inline' 'unsafe-eval'; object-src 'self'"
+    "extension_pages": "script-src 'self'; object-src 'self'"
   },
+  "web_accessible_resources": [
+    {
+      "resources": ["images/*"],
+      "matches": ["<all_urls>"]
+    },
+    {
+      "resources": [
+        "js/lib/*", 
+        "js/lib/tf.min.js", 
+        "js/lib/mobilenet.min.js",
+        "js/modules/*"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -21,17 +35,8 @@
     {
       "matches": ["<all_urls>"],
       "js": ["js/content.js"],
-      "run_at": "document_idle"
-    }
-  ],
-  "web_accessible_resources": [
-    {
-      "resources": ["images/*"],
-      "matches": ["<all_urls>"]
-    },
-    {
-      "resources": ["js/lib/*", "js/lib/tf.min.js", "js/lib/mobilenet.min.js"],
-      "matches": ["<all_urls>"]
+      "run_at": "document_idle",
+      "type": "module"
     }
   ],
   "icons": {
