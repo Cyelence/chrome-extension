@@ -1,0 +1,25 @@
+# Development API keys (DO NOT COMMIT)
+dev-config.js
+*.env
+.env.*
+
+# Chrome extension development
+*.crx
+*.pem
+
+# Node modules (if using build tools)
+node_modules/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log* 

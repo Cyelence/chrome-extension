@@ -5,6 +5,20 @@ const AI_CONFIG = {
     baseUrl: 'https://api.openai.com/v1'
 };
 
+// Development mode - only use this for local testing
+// Create dev-config.js with your API key for development (it's gitignored)
+let DEV_API_KEY = null;
+try {
+    // Try to import dev-config.js if it exists
+    importScripts('dev-config.js');
+    if (typeof DEV_CONFIG !== 'undefined' && DEV_CONFIG.OPENAI_API_KEY) {
+        DEV_API_KEY = DEV_CONFIG.OPENAI_API_KEY;
+        console.log('🔧 Development mode: Using local API key');
+    }
+} catch (e) {
+    // dev-config.js doesn't exist, which is normal for production
+}
+
 // Site-specific product selectors
 const SITE_SELECTORS = {
     'amazon.com': {
@@ -321,11 +335,21 @@ function getBasicSearchResponse(query, products) {
 
 async function getApiKey() {
     try {
+        // First try to get user-provided API key (production)
         const result = await chrome.storage.sync.get(['openai_api_key']);
-        return result.openai_api_key;
+        if (result.openai_api_key) {
+            return result.openai_api_key;
+        }
+        
+        // Fall back to development key if available (development only)
+        if (DEV_API_KEY) {
+            return DEV_API_KEY;
+        }
+        
+        return null;
     } catch (error) {
         console.error('Error getting API key:', error);
-        return null;
+        return DEV_API_KEY; // Fallback to dev key if storage fails
     }
 }
 
