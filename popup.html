@@ -149,26 +149,48 @@
   </div>
 
   <div class="section">
-    <h3>API Configuration</h3>
+    <h3>🆓 Free AI Configuration</h3>
     <div class="form-group">
-      <label for="api-key">OpenAI API Key:</label>
-      <input type="password" id="api-key" placeholder="sk-...">
+      <label for="gemini-key">Google Gemini API Key (Free tier available):</label>
+      <input type="password" id="gemini-key" placeholder="AI...">
       <div class="help-text">
-        Get your API key from <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI Dashboard</a>
+        Get your free API key from <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>
       </div>
     </div>
-    <button class="btn" id="save-key">Save Key</button>
-    <button class="btn btn-small" id="test-key" style="margin-left: 8px;">Test</button>
+    <div class="form-group">
+      <label for="huggingface-key">Hugging Face API Key (Optional - has free tier):</label>
+      <input type="password" id="huggingface-key" placeholder="hf_...">
+      <div class="help-text">
+        Get your free API key from <a href="https://huggingface.co/settings/tokens" target="_blank">Hugging Face</a>
+      </div>
+    </div>
+    <button class="btn" id="save-keys">Save Keys</button>
+    <button class="btn btn-small" id="test-keys" style="margin-left: 8px;">Test</button>
     <div id="key-status"></div>
+    
+    <div class="help-text" style="margin-top: 10px;">
+      <strong>💡 Tip:</strong> For best results, get the free Gemini key. Hugging Face key is optional but recommended.
+    </div>
   </div>
 
   <div class="section">
-    <h3>Features</h3>
+    <h3>🖥️ Local AI (Optional)</h3>
+    <div class="help-text">
+      For 100% free local AI, install <a href="https://ollama.ai/" target="_blank">Ollama</a> and run:
+      <br><code>ollama pull llama2:7b</code>
+      <br><code>ollama pull llava:7b</code>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>🆓 Free AI Features</h3>
     <ul class="feature-list">
-      <li>Smart product search with AI</li>
-      <li>Image-based item matching</li>
+      <li>Smart text search with free Hugging Face models</li>
+      <li>Image search with free Gemini Vision or local Ollama</li>
+      <li>100% free local AI with Ollama (optional)</li>
       <li>Site-specific product detection</li>
       <li>Visual highlighting on page</li>
+      <li>No paid subscriptions required!</li>
     </ul>
   </div>
 

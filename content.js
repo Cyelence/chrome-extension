@@ -138,19 +138,26 @@ document.addEventListener('click', (event) => {
 
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    console.log('🛍️ Shopping Assistant: Received message from background:', request);
+    console.log('🛍️ Shopping Assistant: Content script received message from background:', request.type);
     if (request.type === 'botResponse') {
+        console.log('🛍️ Shopping Assistant: Forwarding bot response to chat iframe');
         // Forward to chat iframe
         iframe.contentWindow.postMessage(request, '*');
+    } else {
+        console.log('🛍️ Shopping Assistant: Unknown message type from background:', request.type);
     }
 });
 
 // Listen for messages from chat iframe
 window.addEventListener('message', (event) => {
     if (event.source === iframe.contentWindow) {
-        console.log('🛍️ Shopping Assistant: Received message from iframe:', event.data);
+        console.log('🛍️ Shopping Assistant: Content script received message from iframe:', event.data.type);
         // Forward to background script
-        chrome.runtime.sendMessage(event.data);
+        chrome.runtime.sendMessage(event.data).then(() => {
+            console.log('🛍️ Shopping Assistant: Message sent to background successfully');
+        }).catch((error) => {
+            console.error('🛍️ Shopping Assistant: Error sending message to background:', error);
+        });
     }
 });
 

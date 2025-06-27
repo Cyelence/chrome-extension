@@ -209,10 +209,24 @@ document.addEventListener('DOMContentLoaded', () => {
     displayMessage("Hi! I'm your AI shopping assistant. I can help you find products on any shopping website.", 'bot');
     displayMessage("Try asking me something like 'help me find a red dress' or upload an image of an item you're looking for!", 'bot');
     
-    // Check if API key is configured
-    chrome.storage.sync.get(['openai_api_key'], (result) => {
-        if (!result.openai_api_key) {
-            displayMessage("⚠️ To use AI features, please set your OpenAI API key in the extension popup.", 'bot');
+    // Check if free API keys are configured
+    chrome.storage.sync.get(['gemini_api_key', 'huggingface_api_key'], (result) => {
+        const messages = [];
+        
+        if (result.gemini_api_key) {
+            messages.push("🎉 Gemini API key configured! Best free text and image search available.");
+        } else {
+            messages.push("💡 For best results: Get a free Gemini API key from Google AI Studio.");
         }
+        
+        if (result.huggingface_api_key) {
+            messages.push("✅ Hugging Face API key configured for additional models.");
+        } else {
+            messages.push("ℹ️ Hugging Face key is optional - extension works with free tiers.");
+        }
+        
+        messages.push("🖥️ For 100% free local AI, install Ollama with llama2 and llava models.");
+        
+        displayMessage(messages.join('\n'), 'bot');
     });
 });
