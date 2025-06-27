@@ -1,8 +1,12 @@
+console.log('🛍️ Shopping Assistant: Content script loading...');
+
 // Create the chat button
 const chatButton = document.createElement('div');
 chatButton.id = 'chat-button';
 chatButton.innerHTML = `<div id="chat-icon"></div>`;
 document.body.appendChild(chatButton);
+
+console.log('🛍️ Shopping Assistant: Chat button created');
 
 // Create the chat window
 const chatWindow = document.createElement('div');
@@ -14,6 +18,8 @@ chatWindow.appendChild(iframe);
 
 document.body.appendChild(chatWindow);
 
+console.log('🛍️ Shopping Assistant: Chat window created');
+
 // State management
 let isWindowOpen = false;
 let hoverTimeout = null;
@@ -21,6 +27,7 @@ let isHovering = false;
 
 // --- Show/Hide Functions ---
 function showChatWindow() {
+    console.log('🛍️ Shopping Assistant: Showing chat window');
     if (!isWindowOpen) {
         chatWindow.style.display = 'flex';
         chatWindow.style.opacity = '0';
@@ -39,6 +46,7 @@ function showChatWindow() {
 }
 
 function hideChatWindow() {
+    console.log('🛍️ Shopping Assistant: Hiding chat window');
     if (isWindowOpen) {
         chatWindow.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
         chatWindow.style.opacity = '0';
@@ -56,6 +64,7 @@ function hideChatWindow() {
 
 // Button hover behavior (like Honey)
 chatButton.addEventListener('mouseenter', () => {
+    console.log('🛍️ Shopping Assistant: Button hover enter');
     isHovering = true;
     
     // Clear any existing timeout
@@ -76,6 +85,7 @@ chatButton.addEventListener('mouseenter', () => {
 });
 
 chatButton.addEventListener('mouseleave', () => {
+    console.log('🛍️ Shopping Assistant: Button hover leave');
     isHovering = false;
     
     // Clear timeout
@@ -90,10 +100,12 @@ chatButton.addEventListener('mouseleave', () => {
 
 // Chat window hover behavior
 chatWindow.addEventListener('mouseenter', () => {
+    console.log('🛍️ Shopping Assistant: Window hover enter');
     isHovering = true;
 });
 
 chatWindow.addEventListener('mouseleave', () => {
+    console.log('🛍️ Shopping Assistant: Window hover leave');
     isHovering = false;
     
     // Hide window after delay when not hovering
@@ -106,6 +118,7 @@ chatWindow.addEventListener('mouseleave', () => {
 
 // Click to toggle (alternative to hover)
 chatButton.addEventListener('click', (e) => {
+    console.log('🛍️ Shopping Assistant: Button clicked');
     e.stopPropagation();
     if (isWindowOpen) {
         hideChatWindow();
@@ -125,6 +138,7 @@ document.addEventListener('click', (event) => {
 
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    console.log('🛍️ Shopping Assistant: Received message from background:', request);
     if (request.type === 'botResponse') {
         // Forward to chat iframe
         iframe.contentWindow.postMessage(request, '*');
@@ -134,6 +148,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // Listen for messages from chat iframe
 window.addEventListener('message', (event) => {
     if (event.source === iframe.contentWindow) {
+        console.log('🛍️ Shopping Assistant: Received message from iframe:', event.data);
         // Forward to background script
         chrome.runtime.sendMessage(event.data);
     }
@@ -143,6 +158,7 @@ window.addEventListener('message', (event) => {
 document.addEventListener('keydown', (event) => {
     // Ctrl/Cmd + Shift + S to toggle chat
     if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'S') {
+        console.log('🛍️ Shopping Assistant: Keyboard shortcut triggered');
         event.preventDefault();
         if (isWindowOpen) {
             hideChatWindow();
@@ -191,3 +207,5 @@ function adjustForMobile() {
 // Adjust on load and resize
 adjustForMobile();
 window.addEventListener('resize', adjustForMobile);
+
+console.log('🛍️ Shopping Assistant: Content script fully loaded!');

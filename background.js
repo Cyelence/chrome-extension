@@ -5,6 +5,8 @@ const AI_CONFIG = {
     baseUrl: 'https://api.openai.com/v1'
 };
 
+console.log('🛍️ Shopping Assistant: Background script starting...');
+
 // Development mode - only use this for local testing
 // Create dev-config.js with your API key for development (it's gitignored)
 let DEV_API_KEY = null;
@@ -17,6 +19,7 @@ try {
     }
 } catch (e) {
     // dev-config.js doesn't exist, which is normal for production
+    console.log('🛍️ Shopping Assistant: No dev config found (normal for production)');
 }
 
 // Site-specific product selectors
@@ -59,43 +62,56 @@ const SITE_SELECTORS = {
 };
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    console.log('🛍️ Shopping Assistant: Background received message:', request.type);
+    
     if (request.type === 'chatMessage') {
+        console.log('🛍️ Shopping Assistant: Processing chat message:', request.text);
         handleChatMessage(request, sender, sendResponse);
         return true; // Keep the message channel open for async response
     } else if (request.type === 'imageUpload') {
+        console.log('🛍️ Shopping Assistant: Processing image upload');
         handleImageUpload(request, sender, sendResponse);
         return true;
     } else if (request.type === 'highlightProduct') {
+        console.log('🛍️ Shopping Assistant: Highlighting product');
         highlightProduct(request, sender);
     }
 });
 
 async function handleChatMessage(request, sender, sendResponse) {
     try {
+        console.log('🛍️ Shopping Assistant: handleChatMessage started');
         const userMessage = request.text;
         
         // Get current tab info
         const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-        const activeTab = tabs[0];
+            const activeTab = tabs[0];
         
         if (!activeTab || !activeTab.id) {
+            console.error('🛍️ Shopping Assistant: No active tab found');
             sendResponse({ type: 'botResponse', text: 'Unable to access the current tab.' });
             return;
         }
 
+        console.log('🛍️ Shopping Assistant: Active tab:', activeTab.url);
+
         // Scan the page for products
+        console.log('🛍️ Shopping Assistant: Scanning page for products...');
         const results = await chrome.scripting.executeScript({
-            target: { tabId: activeTab.id },
-            function: scanPageForProducts,
+                    target: { tabId: activeTab.id },
+                    function: scanPageForProducts,
             args: [activeTab.url]
         });
 
         const { products, pageContent } = results[0].result;
+        console.log('🛍️ Shopping Assistant: Found', products.length, 'products');
         
         // Get AI response
+        console.log('🛍️ Shopping Assistant: Getting AI response...');
         const aiResponse = await getAIResponse(userMessage, products, pageContent, activeTab.url);
         
         // Send response back to chat
+        console.log('🛍️ Shopping Assistant: Sending response back to content script');
         chrome.tabs.sendMessage(activeTab.id, { 
             type: 'botResponse', 
             text: aiResponse.message,
@@ -103,11 +119,13 @@ async function handleChatMessage(request, sender, sendResponse) {
         });
 
     } catch (error) {
-        console.error('Error handling chat message:', error);
-        chrome.tabs.sendMessage(sender.tab.id, { 
-            type: 'botResponse', 
-            text: 'Sorry, I encountered an error. Please try again.' 
-        });
+        console.error('🛍️ Shopping Assistant: Error in handleChatMessage:', error);
+        if (sender.tab && sender.tab.id) {
+            chrome.tabs.sendMessage(sender.tab.id, { 
+                type: 'botResponse', 
+                text: 'Sorry, I encountered an error. Please try again.' 
+            });
+        }
     }
 }
 
@@ -148,12 +166,56 @@ async function handleImageUpload(request, sender, sendResponse) {
 }
 
 function scanPageForProducts(currentUrl) {
+    // Define selectors inside the function since it runs in page context
+    const SITE_SELECTORS = {
+        'amazon.com': {
+            products: '[data-component-type="s-search-result"], [data-asin]:not([data-asin=""])',
+            title: 'h2 a span, [data-cy="title-recipe-title"]',
+            price: '.a-price-whole, .a-price .a-offscreen',
+            image: '.s-image, [data-a-image-name="landingImage"]',
+            link: 'h2 a, [data-cy="title-recipe-title"]'
+        },
+        'nike.com': {
+            products: '[data-testid="product-card"], .product-card',
+            title: '[data-testid="product-card-title"], .product-card__title',
+            price: '[data-testid="product-price"], .product-price',
+            image: '[data-testid="product-card-image"] img, .product-card__hero-image img',
+            link: '[data-testid="product-card-link"], .product-card__link-overlay'
+        },
+        'target.com': {
+            products: '[data-test="@web/site-top-of-funnel/ProductCardWrapper"]',
+            title: '[data-test="product-title"]',
+            price: '[data-test="product-price"]',
+            image: 'img[alt*="product"]',
+            link: 'a[data-test="product-title"]'
+        },
+        'walmart.com': {
+            products: '[data-automation-id="product-tile"]',
+            title: '[data-automation-id="product-title"]',
+            price: '[itemprop="price"]',
+            image: '[data-testid="productTileImage"]',
+            link: 'a[data-automation-id="product-title"]'
+        },
+        'generic': {
+            products: '.product, .item, [data-product], .product-item, .product-card',
+            title: 'h2, h3, .title, .product-title, .product-name, .item-name',
+            price: '.price, .product-price, .item-price, [class*="price"]',
+            image: 'img',
+            link: 'a'
+        }
+    };
+    
     const domain = new URL(currentUrl).hostname.replace('www.', '');
     let selectors = SITE_SELECTORS[domain] || SITE_SELECTORS.generic;
+    
+    console.log('🛍️ Scanning for products on:', domain);
+    console.log('🛍️ Using selectors:', selectors.products);
     
     // Try multiple selector strategies
     const products = [];
     const productElements = document.querySelectorAll(selectors.products);
+    
+    console.log('🛍️ Found', productElements.length, 'potential product elements');
     
     productElements.forEach((elem, index) => {
         try {
@@ -177,9 +239,10 @@ function scanPageForProducts(currentUrl) {
                     element: elem.outerHTML.substring(0, 200), // First 200 chars for context
                     selector: `${selectors.products}:nth-child(${index + 1})`
                 });
+                console.log('🛍️ Found product:', title);
             }
         } catch (e) {
-            console.log('Error extracting product:', e);
+            console.log('🛍️ Error extracting product:', e);
         }
     });
     
@@ -192,17 +255,24 @@ function scanPageForProducts(currentUrl) {
         productCount: products.length
     };
     
+    console.log('🛍️ Scan complete! Found', products.length, 'products');
+    
     return { products, pageContent };
 }
 
 async function getAIResponse(userMessage, products, pageContent, currentUrl) {
+    console.log('🛍️ Shopping Assistant: Getting AI response for:', userMessage);
+    
     const apiKey = await getApiKey();
     if (!apiKey) {
+        console.log('🛍️ Shopping Assistant: No API key found');
         return {
             message: "To use AI features, please set your OpenAI API key in the extension popup.",
             matchedProducts: []
         };
     }
+
+    console.log('🛍️ Shopping Assistant: API key found, length:', apiKey.length);
 
     const prompt = `You are a helpful shopping assistant. The user is on ${pageContent.domain} and asked: "${userMessage}"
 
@@ -212,6 +282,8 @@ ${products.map(p => `- ${p.title} (${p.price})`).join('\n')}
 Based on the user's request, help them find relevant products from this page. If you find matching products, provide their titles and explain why they match. Be conversational and helpful.
 
 If no products match well, suggest what they might look for or ask clarifying questions.`;
+
+    console.log('🛍️ Shopping Assistant: Making API call to OpenAI...');
 
     try {
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -228,17 +300,26 @@ If no products match well, suggest what they might look for or ask clarifying qu
             })
         });
 
+        console.log('🛍️ Shopping Assistant: API response status:', response.status);
+
         if (!response.ok) {
-            throw new Error(`API error: ${response.status}`);
+            const errorText = await response.text();
+            console.error('🛍️ Shopping Assistant: API error response:', errorText);
+            throw new Error(`API error: ${response.status} - ${errorText}`);
         }
 
         const data = await response.json();
+        console.log('🛍️ Shopping Assistant: API response received');
+        
         const aiMessage = data.choices[0].message.content;
+        console.log('🛍️ Shopping Assistant: AI message:', aiMessage);
 
         // Find products mentioned in AI response for highlighting
         const matchedProducts = products.filter(product => 
             aiMessage.toLowerCase().includes(product.title.toLowerCase().substring(0, 20))
         );
+
+        console.log('🛍️ Shopping Assistant: Found', matchedProducts.length, 'matched products');
 
         return {
             message: aiMessage,
@@ -246,7 +327,8 @@ If no products match well, suggest what they might look for or ask clarifying qu
         };
 
     } catch (error) {
-        console.error('AI API Error:', error);
+        console.error('🛍️ Shopping Assistant: AI API Error:', error);
+        console.error('🛍️ Shopping Assistant: Full error details:', error.message);
         return {
             message: "I'm having trouble connecting to the AI service. Here's what I found using basic search:\n" + 
                     getBasicSearchResponse(userMessage, products),
@@ -338,17 +420,20 @@ async function getApiKey() {
         // First try to get user-provided API key (production)
         const result = await chrome.storage.sync.get(['openai_api_key']);
         if (result.openai_api_key) {
+            console.log('🛍️ Shopping Assistant: Using user-provided API key');
             return result.openai_api_key;
         }
         
         // Fall back to development key if available (development only)
         if (DEV_API_KEY) {
+            console.log('🛍️ Shopping Assistant: Using development API key');
             return DEV_API_KEY;
         }
         
+        console.log('🛍️ Shopping Assistant: No API key found');
         return null;
     } catch (error) {
-        console.error('Error getting API key:', error);
+        console.error('🛍️ Shopping Assistant: Error getting API key:', error);
         return DEV_API_KEY; // Fallback to dev key if storage fails
     }
 }
@@ -401,3 +486,5 @@ async function highlightProduct(request, sender) {
         console.error('Error highlighting product:', error);
     }
 }
+
+console.log('🛍️ Shopping Assistant: Background script loaded!');

@@ -4,7 +4,7 @@
 
 const DEV_CONFIG = {
     // Your OpenAI API key for development testing
-    OPENAI_API_KEY: 'sk-your-api-key-here',
+    OPENAI_API_KEY: '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',
     
     // Enable development mode features
     DEV_MODE: true,
