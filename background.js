@@ -1,14 +1,22 @@
-// Configuration - Simple free AI with Google Gemini
+// Configuration - Ollama first, Gemini as fallback
 const AI_CONFIG = {
-    provider: 'gemini', // Single provider for both text and images
+    primaryProvider: 'ollama',   // Try Ollama first (100% free, local)
+    fallbackProvider: 'gemini',  // Fallback to Gemini if Ollama not available
     
-    // API endpoint
+    // API endpoints
+    ollamaApiUrl: 'http://localhost:11434/api',
     geminiApiUrl: 'https://generativelanguage.googleapis.com/v1beta',
     
     // Model configurations
     models: {
-        text: 'gemini-pro',
-        vision: 'gemini-pro-vision'
+        ollama: {
+            text: 'llama2:7b',
+            vision: 'llava:7b'
+        },
+        gemini: {
+            text: 'gemini-pro',
+            vision: 'gemini-pro-vision'
+        }
     },
     
     debug: true // Enable detailed logging
@@ -22,9 +30,9 @@ let DEV_API_KEY = null;
 try {
     // Try to import dev-config.js if it exists
     importScripts('dev-config.js');
-    if (typeof DEV_CONFIG !== 'undefined' && DEV_CONFIG.OPENAI_API_KEY) {
-        DEV_API_KEY = DEV_CONFIG.OPENAI_API_KEY;
-        console.log('🔧 Development mode: Using local API key');
+    if (typeof DEV_CONFIG !== 'undefined' && DEV_CONFIG.GEMINI_API_KEY) {
+        DEV_API_KEY = DEV_CONFIG.GEMINI_API_KEY;
+        console.log('🔧 Development mode: Using local Gemini API key');
     }
 } catch (e) {
     // dev-config.js doesn't exist, which is normal for production
@@ -325,7 +333,7 @@ function scanPageForProducts(currentUrl) {
 }
 
 async function getAIResponse(userMessage, products, pageContent, currentUrl) {
-    debugLog('Getting AI response for text search using Gemini', { userMessage, productsCount: products.length });
+    debugLog('Getting AI response for text search', { userMessage, productsCount: products.length });
 
     const prompt = `You are a helpful shopping assistant. The user is on ${pageContent?.domain || 'a shopping website'} and asked: "${userMessage}"
 
@@ -338,8 +346,25 @@ Based on the user's request, help them find relevant products from this page. If
 If no products match well, suggest what they might look for or ask clarifying questions.`;
 
     try {
-        const aiMessage = await getGeminiResponse(prompt, 'text');
-        debugLog('AI message generated', { messageLength: aiMessage.length });
+        let aiMessage;
+        let usedProvider;
+
+        // Try Ollama first (100% free, local)
+        try {
+            debugLog('Trying Ollama first (local, free)');
+            aiMessage = await getOllamaResponse(prompt, 'text');
+            usedProvider = 'Ollama (local)';
+            debugLog('Ollama successful');
+        } catch (ollamaError) {
+            debugLog('Ollama failed, trying Gemini fallback', { error: ollamaError.message });
+            
+            // Fallback to Gemini
+            aiMessage = await getGeminiResponse(prompt, 'text');
+            usedProvider = 'Google Gemini (cloud)';
+            debugLog('Gemini fallback successful');
+        }
+
+        debugLog('AI message generated', { messageLength: aiMessage.length, provider: usedProvider });
 
         // Find products mentioned in AI response for highlighting
         const matchedProducts = products.filter(product => {
@@ -354,14 +379,14 @@ If no products match well, suggest what they might look for or ask clarifying qu
         debugLog('Product matching complete', { matchedProducts: matchedProducts.length });
 
         return {
-            message: aiMessage,
+            message: `${aiMessage}\n\n_Powered by ${usedProvider}_`,
             matchedProducts: matchedProducts
         };
 
     } catch (error) {
-        debugLog('Gemini API Error', { error: error.message, stack: error.stack });
+        debugLog('All AI providers failed', { error: error.message, stack: error.stack });
         return {
-            message: "I'm having trouble connecting to Google Gemini. Here's what I found using basic search:\n\n" + 
+            message: "I'm having trouble connecting to AI services (Ollama not running, Gemini failed). Here's what I found using basic search:\n\n" + 
                     getBasicSearchResponse(userMessage, products),
             matchedProducts: []
         };
@@ -369,7 +394,7 @@ If no products match well, suggest what they might look for or ask clarifying qu
 }
 
 async function getAIImageResponse(imageData, query, products, currentUrl) {
-    debugLog('Getting AI response for image search using Gemini Vision', { hasImage: !!imageData, query, productsCount: products.length });
+    debugLog('Getting AI response for image search', { hasImage: !!imageData, query, productsCount: products.length });
 
     const prompt = `You are a shopping assistant helping find products similar to an uploaded image. 
 ${query ? `The user also said: "${query}"` : ''}
@@ -381,8 +406,25 @@ ${products.length > 15 ? `... and ${products.length - 15} more products` : ''}
 Based on the uploaded image${query ? ' and user query' : ''}, which products from this page are most similar? Explain why they match and suggest the best options.`;
 
     try {
-        const aiMessage = await getGeminiVisionResponse(imageData, prompt);
-        debugLog('AI image analysis complete', { messageLength: aiMessage.length });
+        let aiMessage;
+        let usedProvider;
+
+        // Try Ollama first (100% free, local)
+        try {
+            debugLog('Trying Ollama LLaVA first (local, free)');
+            aiMessage = await getOllamaVisionResponse(imageData, prompt);
+            usedProvider = 'Ollama LLaVA (local)';
+            debugLog('Ollama vision successful');
+        } catch (ollamaError) {
+            debugLog('Ollama vision failed, trying Gemini fallback', { error: ollamaError.message });
+            
+            // Fallback to Gemini Vision
+            aiMessage = await getGeminiVisionResponse(imageData, prompt);
+            usedProvider = 'Google Gemini Vision (cloud)';
+            debugLog('Gemini vision fallback successful');
+        }
+
+        debugLog('AI image analysis complete', { messageLength: aiMessage.length, provider: usedProvider });
 
         const matchedProducts = products.filter(product => {
             const productTitle = product.title.toLowerCase();
@@ -396,14 +438,14 @@ Based on the uploaded image${query ? ' and user query' : ''}, which products fro
         debugLog('Image search product matching complete', { matchedProducts: matchedProducts.length });
 
         return {
-            message: aiMessage,
+            message: `${aiMessage}\n\n_Powered by ${usedProvider}_`,
             matchedProducts: matchedProducts
         };
 
     } catch (error) {
-        debugLog('Gemini Vision Error', { error: error.message, stack: error.stack });
+        debugLog('All AI vision providers failed', { error: error.message, stack: error.stack });
         return {
-            message: `I had trouble analyzing your image with Google Gemini Vision. Error: ${error.message}\n\nCould you describe what you're looking for instead?`,
+            message: `I had trouble analyzing your image with both Ollama and Gemini Vision. Error: ${error.message}\n\nCould you describe what you're looking for instead?`,
             matchedProducts: []
         };
     }
@@ -548,53 +590,13 @@ async function getGeminiVisionResponse(imageData, prompt) {
     return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response from Gemini Vision';
 }
 
-async function getHuggingFaceVisionResponse(imageData, prompt) {
-    debugLog('Making vision request to Hugging Face');
-    
-    // Note: Hugging Face vision models are limited and may not work well for shopping
-    // This is a basic implementation
-    const apiKey = await getApiKey('huggingface');
-    const model = 'Salesforce/blip-image-captioning-base'; // Basic image captioning
-    
-    try {
-        // First, get image caption
-        const captionResponse = await fetch(`${AI_CONFIG.huggingfaceApiUrl}/${model}`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                ...(apiKey && { 'Authorization': `Bearer ${apiKey}` })
-            },
-            body: JSON.stringify({
-                inputs: imageData
-            })
-        });
-
-        if (!captionResponse.ok) {
-            throw new Error('Hugging Face vision model not available');
-        }
-
-        const captionData = await captionResponse.json();
-        const imageCaption = Array.isArray(captionData) ? captionData[0]?.generated_text : captionData.generated_text;
-        
-        // Then use text model to analyze caption with products
-        const analysisPrompt = `${prompt}\n\nImage shows: ${imageCaption}`;
-        return await getHuggingFaceResponse(analysisPrompt);
-        
-    } catch (error) {
-        throw new Error(`Hugging Face vision limited. Try describing the image instead. Error: ${error.message}`);
-    }
-}
-
-async function getApiKey(provider = 'huggingface') {
+async function getApiKey(provider = 'gemini') {
     try {
         debugLog(`Getting ${provider} API key`);
         
         // Map provider to storage key
         const storageKeys = {
-            'huggingface': 'huggingface_api_key',
-            'gemini': 'gemini_api_key',
-            'openai': 'openai_api_key',
-            'anthropic': 'anthropic_api_key'
+            'gemini': 'gemini_api_key'
         };
         
         const storageKey = storageKeys[provider];
@@ -611,8 +613,8 @@ async function getApiKey(provider = 'huggingface') {
         }
         
         // Fall back to development key if available (development only)
-        if (DEV_API_KEY && provider === 'openai') {
-            debugLog('Using development OpenAI API key');
+        if (DEV_API_KEY && provider === 'gemini') {
+            debugLog('Using development Gemini API key');
             return DEV_API_KEY;
         }
         
@@ -620,7 +622,7 @@ async function getApiKey(provider = 'huggingface') {
         return null;
     } catch (error) {
         debugLog(`Error getting ${provider} API key`, { error: error.message });
-        return provider === 'openai' ? DEV_API_KEY : null;
+        return provider === 'gemini' ? DEV_API_KEY : null;
     }
 }
 

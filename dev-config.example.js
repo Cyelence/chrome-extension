@@ -3,8 +3,8 @@
 // dev-config.js is gitignored and won't be committed
 
 const DEV_CONFIG = {
-    // Your OpenAI API key for development testing
-    OPENAI_API_KEY: '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',
+    // Your Google Gemini API key for development testing (optional)
+    GEMINI_API_KEY: 'YOUR_GEMINI_API_KEY_HERE',
     
     // Enable development mode features
     DEV_MODE: true,
@@ -13,5 +13,5 @@ const DEV_CONFIG = {
     DEBUG_LOGGING: true
 };
 
-// Note: In production, users will provide their own API keys
-// This is only for development testing 
+// Note: In production, the extension will try to use local Ollama first,
+// then fall back to Gemini if the user provides a key. 

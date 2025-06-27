@@ -149,37 +149,30 @@
   </div>
 
   <div class="section">
-    <h3>🆓 Free AI Configuration</h3>
-    <div class="form-group">
-      <label for="gemini-key">Google Gemini API Key (Free tier available):</label>
-      <input type="password" id="gemini-key" placeholder="AI...">
-      <div class="help-text">
-        Get your free API key from <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>
-      </div>
+    <h3>🖥️ Best Option: 100% Free Local AI</h3>
+    <div class="help-text">
+      <strong>Recommended:</strong> Install <a href="https://ollama.ai/" target="_blank">Ollama</a> for completely free, unlimited AI:
+      <br><br><strong>Setup commands:</strong>
+      <br><code>ollama pull llama2:7b</code> (for text search)
+      <br><code>ollama pull llava:7b</code> (for image search)
+      <br><br>✅ No API keys needed<br>✅ No rate limits<br>✅ Complete privacy<br>✅ Works offline
     </div>
-    <div class="form-group">
-      <label for="huggingface-key">Hugging Face API Key (Optional - has free tier):</label>
-      <input type="password" id="huggingface-key" placeholder="hf_...">
-      <div class="help-text">
-        Get your free API key from <a href="https://huggingface.co/settings/tokens" target="_blank">Hugging Face</a>
-      </div>
-    </div>
-    <button class="btn" id="save-keys">Save Keys</button>
-    <button class="btn btn-small" id="test-keys" style="margin-left: 8px;">Test</button>
-    <div id="key-status"></div>
-    
-    <div class="help-text" style="margin-top: 10px;">
-      <strong>💡 Tip:</strong> For best results, get the free Gemini key. Hugging Face key is optional but recommended.
-    </div>
+    <button class="btn btn-small" id="test-ollama">Test Ollama</button>
+    <div id="ollama-status"></div>
   </div>
 
   <div class="section">
-    <h3>🖥️ Local AI (Optional)</h3>
-    <div class="help-text">
-      For 100% free local AI, install <a href="https://ollama.ai/" target="_blank">Ollama</a> and run:
-      <br><code>ollama pull llama2:7b</code>
-      <br><code>ollama pull llava:7b</code>
+    <h3>☁️ Cloud Fallback (Optional)</h3>
+    <div class="form-group">
+      <label for="gemini-key">Google Gemini API Key (Free backup option):</label>
+      <input type="password" id="gemini-key" placeholder="AI...">
+      <div class="help-text">
+        Only needed if you don't want to install Ollama. Get free key from <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a>
+      </div>
     </div>
+    <button class="btn" id="save-keys">Save Gemini Key</button>
+    <button class="btn btn-small" id="test-keys" style="margin-left: 8px;">Test</button>
+    <div id="key-status"></div>
   </div>
 
   <div class="section">
