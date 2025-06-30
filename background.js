@@ -247,7 +247,6 @@ async function handleImageUpload(request, sender, sendResponse) {
 }
 
 function scanPageForProducts(currentUrl) {
-    // Define selectors inside the function since it runs in page context
     const SITE_SELECTORS = {
         'amazon.com': {
             products: '[data-component-type="s-search-result"], [data-asin]:not([data-asin=""])',
@@ -309,6 +308,10 @@ function scanPageForProducts(currentUrl) {
             const price = priceEl?.textContent?.trim();
             const imageUrl = imageEl?.src || imageEl?.getAttribute('data-src');
             const productUrl = linkEl?.href;
+
+            // Use a unique data attribute for robust highlighting
+            const uniqueId = `shopping-assistant-product-${index}`;
+            elem.setAttribute('data-shopping-assistant-id', uniqueId);
             
             if (title) {
                 products.push({
@@ -318,7 +321,7 @@ function scanPageForProducts(currentUrl) {
                     imageUrl,
                     productUrl,
                     element: elem.outerHTML.substring(0, 200), // First 200 chars for context
-                    selector: `${selectors.products}:nth-child(${index + 1})`
+                    selector: `[data-shopping-assistant-id="${uniqueId}"]` // Use the new unique selector
                 });
                 console.log('🛍️ Found product:', title);
             }
@@ -352,15 +355,19 @@ async function getAIResponse(userMessage, products, pageContent, currentUrl) {
         };
     }
 
-    const prompt = `You are a helpful shopping assistant. The user is on ${pageContent?.domain || 'a shopping website'} and asked: "${userMessage}"
+    const prompt = `You are a helpful shopping assistant. The user is on ${pageContent?.domain || 'a shopping website'}.
+The user said: "${userMessage}"
+
+First, analyze the user's message.
+- If the user's message is a simple greeting (like "hi", "hello"), a thank you, or a general non-shopping question, respond conversationally without mentioning products.
+- Otherwise, if the user seems to be looking for an item, help them find relevant products from the list below.
 
 Available products on this page:
 ${products.slice(0, 15).map(p => `- ${p.title} (${p.price || 'Price not found'})`).join('\n')}
 ${products.length > 15 ? `... and ${products.length - 15} more products` : ''}
 
-Based on the user's request, help them find relevant products from this page. If you find matching products, provide their titles and explain why they match. Be conversational and helpful.
-
-If no products match well, suggest what they might look for or ask clarifying questions.`;
+If you find matching products, provide their titles and explain why they match. Be conversational.
+If no products match the user's request, say that you couldn't find a match and ask for more details.`;
 
     try {
         let aiMessage;

@@ -30,15 +30,21 @@ document.addEventListener('DOMContentLoaded', () => {
             products.forEach(product => {
                 const productItem = document.createElement('div');
                 productItem.classList.add('product-item');
-                productItem.innerHTML = `
-                    <div class="product-info">
-                        <div class="product-title">${product.title}</div>
-                        <div class="product-price">${product.price}</div>
-                    </div>
-                    <button class="highlight-btn" data-selector="${product.selector}">
-                        Show on page
-                    </button>
+                
+                const productInfo = document.createElement('div');
+                productInfo.classList.add('product-info');
+                productInfo.innerHTML = `
+                    <div class="product-title">${product.title}</div>
+                    <div class="product-price">${product.price}</div>
                 `;
+                
+                const highlightButton = document.createElement('button');
+                highlightButton.classList.add('highlight-btn');
+                highlightButton.textContent = 'Show on page';
+                highlightButton.setAttribute('data-selector', product.selector);
+
+                productItem.appendChild(productInfo);
+                productItem.appendChild(highlightButton);
                 productsDiv.appendChild(productItem);
             });
             
