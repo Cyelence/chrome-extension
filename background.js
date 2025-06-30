@@ -14,12 +14,12 @@ const AI_CONFIG = {
             vision: 'llava:7b'
         },
         gemini: {
-            text: 'gemini-pro',
-            vision: 'gemini-pro-vision'
+            text: 'gemini-1.5-flash',
+            vision: 'gemini-1.5-pro-latest'
         }
     },
     
-    debug: true // Enable detailed logging
+    debug: true
 };
 
 console.log('🛍️ Shopping Assistant: Background script starting with hybrid AI approach...');
@@ -175,6 +175,15 @@ async function handleChatMessage(request, sender, sendResponse) {
         // Get AI response using text provider (Anthropic)
         debugLog('Getting AI response using text provider...');
         const aiResponse = await getAIResponse(userMessage, products, pageContent, activeTab.url);
+
+        if (aiResponse.error) {
+            chrome.tabs.sendMessage(activeTab.id, {
+                type: 'botResponse',
+                text: aiResponse.message,
+                products: []
+            });
+            return;
+        }
         
         // Send response back to chat
         debugLog('Sending response back to content script', { 
@@ -335,6 +344,14 @@ function scanPageForProducts(currentUrl) {
 async function getAIResponse(userMessage, products, pageContent, currentUrl) {
     debugLog('Getting AI response for text search', { userMessage, productsCount: products.length });
 
+    if (!products || products.length === 0) {
+        return {
+            message: "I couldn't find any products on this page. Please make sure you're on a product listing page and try again.",
+            matchedProducts: [],
+            error: true
+        };
+    }
+
     const prompt = `You are a helpful shopping assistant. The user is on ${pageContent?.domain || 'a shopping website'} and asked: "${userMessage}"
 
 Available products on this page:
@@ -386,15 +403,29 @@ If no products match well, suggest what they might look for or ask clarifying qu
     } catch (error) {
         debugLog('All AI providers failed', { error: error.message, stack: error.stack });
         return {
-            message: "I'm having trouble connecting to AI services (Ollama not running, Gemini failed). Here's what I found using basic search:\n\n" + 
-                    getBasicSearchResponse(userMessage, products),
-            matchedProducts: []
+            message: `I tried to connect to your local Ollama, but it seems to be offline. I then tried the backup (Google Gemini), but that also failed.
+
+**To fix this, you can either:**
+1.  **Start Ollama** on your computer.
+2.  **Add a free Google Gemini API key** in the extension popup.
+
+Error details: ${error.message}`,
+            matchedProducts: [],
+            error: true
         };
     }
 }
 
 async function getAIImageResponse(imageData, query, products, currentUrl) {
     debugLog('Getting AI response for image search', { hasImage: !!imageData, query, productsCount: products.length });
+
+    if (!products || products.length === 0) {
+        return {
+            message: "I couldn't find any products on this page to compare your image with. Please make sure you're on a product listing page.",
+            matchedProducts: [],
+            error: true
+        };
+    }
 
     const prompt = `You are a shopping assistant helping find products similar to an uploaded image. 
 ${query ? `The user also said: "${query}"` : ''}
@@ -446,7 +477,8 @@ Based on the uploaded image${query ? ' and user query' : ''}, which products fro
         debugLog('All AI vision providers failed', { error: error.message, stack: error.stack });
         return {
             message: `I had trouble analyzing your image with both Ollama and Gemini Vision. Error: ${error.message}\n\nCould you describe what you're looking for instead?`,
-            matchedProducts: []
+            matchedProducts: [],
+            error: true
         };
     }
 }
@@ -479,6 +511,7 @@ async function getGeminiResponse(prompt, type = 'text') {
     
     const model = type === 'text' ? AI_CONFIG.models.gemini.text : AI_CONFIG.models.gemini.vision;
     
+    console.log('%cSending to Gemini:', 'color: orange; font-weight: bold;', { model, prompt });
     const response = await fetch(`${AI_CONFIG.geminiApiUrl}/models/${model}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -500,6 +533,7 @@ async function getGeminiResponse(prompt, type = 'text') {
     }
 
     const data = await response.json();
+    console.log('%cReceived from Gemini:', 'color: green; font-weight: bold;', data);
     debugLog('Gemini response received', { hasCandidates: !!data.candidates });
     
     return data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response from Gemini';
