@@ -1,127 +1,390 @@
-#chat-button {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  width: 60px;
-  height: 60px;
-  background-color: #007bff;
-  border-radius: 50%;
-  cursor: pointer;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  user-select: none;
+/* styles.css - Enhanced Fashion AI Extension Styles */
+
+/* Main Search Container */
+#fashion-ai-search-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 99999;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    padding: 20px;
+    display: none;
+    flex-direction: column;
+    gap: 16px;
+    width: 380px;
+    max-width: 90vw;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-#chat-button:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 20px rgba(0, 123, 255, 0.4);
+/* Header */
+#fashion-ai-search-container::before {
+    content: "🛍 AI Fashion Finder";
+    font-size: 18px;
+    font-weight: 700;
+    color: white;
+    text-align: center;
+    margin-bottom: 8px;
+    display: block;
 }
 
-#chat-button.active {
-  background-color: #0056b3;
-  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.3);
+/* Search Bar */
+#fashion-ai-search-container .search-bar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
 }
 
-#chat-icon {
-    width: 30px;
-    height: 30px;
-    background-color: white;
-    -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>') no-repeat center;
-    mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/></svg>') no-repeat center;
-    transition: transform 0.2s ease;
-}
-
-#chat-button.active #chat-icon {
-    transform: rotate(180deg);
-}
-
-#chat-window {
-  position: fixed;
-  bottom: 90px;
-  right: 20px;
-  width: 350px;
-  height: 500px;
-  border: 1px solid #ccc;
-  border-radius: 12px;
-  background-color: white;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
-  z-index: 10000;
-  display: none;
-  flex-direction: column;
-  overflow: hidden;
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255,255,255,0.2);
-}
-
-#chat-window::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
-  pointer-events: none;
-  z-index: -1;
-}
-
-#chat-window iframe {
-  width: 100%;
-  height: 100%;
-  border: none;
-}
-
-/* Responsive design */
-@media (max-width: 768px) {
-  #chat-button {
-    bottom: 15px;
-    right: 15px;
-    width: 55px;
-    height: 55px;
-  }
-  
-  #chat-icon {
-    width: 26px;
-    height: 26px;
-  }
-  
-  #chat-window {
-    width: 90vw;
-    height: 70vh;
-    right: 5vw;
-    bottom: 80px;
+#fashion-ai-search-container input {
+    flex-grow: 1;
+    border: none;
     border-radius: 8px;
-  }
+    padding: 12px 16px;
+    font-size: 15px;
+    background: rgba(255, 255, 255, 0.95);
+    color: #333;
+    placeholder-color: #666;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
 }
 
-/* Accessibility improvements */
+#fashion-ai-search-container input:focus {
+    outline: none;
+    background: white;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+}
+
+#fashion-ai-search-container input::placeholder {
+    color: #888;
+    font-style: italic;
+}
+
+#fashion-ai-search-container button {
+    border: none;
+    background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(238, 90, 82, 0.3);
+}
+
+#fashion-ai-search-container button:hover {
+    background: linear-gradient(135deg, #ee5a52, #e74c3c);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(238, 90, 82, 0.4);
+}
+
+#fashion-ai-search-container button:active {
+    transform: translateY(0);
+}
+
+/* Status Display */
+#fashion-ai-status {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.9);
+    text-align: center;
+    min-height: 20px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Loading Animation */
+.fashion-ai-loading {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 1s ease-in-out infinite;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Product Highlights */
+.fashion-ai-highlight {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #000;
+    font-weight: bold;
+    font-size: 16px;
+    text-shadow: 0 0 6px rgba(255, 255, 255, 0.9);
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 1000;
+    border: 3px solid;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+    backdrop-filter: blur(1px);
+}
+
+.fashion-ai-highlight:hover {
+    transform: scale(1.02);
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.4);
+}
+
+/* Highlight Content */
+.fashion-ai-highlight > div {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 8px 12px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.fashion-ai-highlight .match-score {
+    font-size: 18px;
+    font-weight: 800;
+    margin-bottom: 2px;
+}
+
+.fashion-ai-highlight .confidence-label {
+    font-size: 11px;
+    opacity: 0.8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Confidence-based coloring */
+.fashion-ai-highlight.high-confidence {
+    background: linear-gradient(135deg, rgba(50, 205, 50, 0.2), rgba(34, 139, 34, 0.3));
+    border-color: #32CD32;
+}
+
+.fashion-ai-highlight.medium-confidence {
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(218, 165, 32, 0.3));
+    border-color: #FFD700;
+}
+
+.fashion-ai-highlight.low-confidence {
+    background: linear-gradient(135deg, rgba(255, 165, 0, 0.2), rgba(255, 140, 0, 0.3));
+    border-color: #FFA500;
+}
+
+/* Details Popup */
+.fashion-ai-details-popup {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 450px;
+    width: 90vw;
+    z-index: 10001;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.fashion-ai-details-popup h3 {
+    margin: 0 0 16px 0;
+    color: #333;
+    font-size: 20px;
+    font-weight: 700;
+    border-bottom: 2px solid #667eea;
+    padding-bottom: 8px;
+}
+
+.fashion-ai-details-popup p {
+    margin: 12px 0;
+    line-height: 1.5;
+    color: #555;
+}
+
+.fashion-ai-details-popup strong {
+    color: #333;
+    font-weight: 600;
+}
+
+.fashion-ai-details-popup h4 {
+    margin: 20px 0 12px 0;
+    color: #444;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.fashion-ai-details-popup ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.fashion-ai-details-popup li {
+    padding: 6px 0;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.fashion-ai-details-popup li:last-child {
+    border-bottom: none;
+}
+
+.fashion-ai-details-popup button {
+    margin-top: 20px;
+    padding: 12px 24px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.fashion-ai-details-popup button:hover {
+    background: linear-gradient(135deg, #5a6fd8, #6a4190);
+    transform: translateY(-1px);
+}
+
+/* Settings Panel */
+.fashion-ai-settings {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 12px;
+    margin-top: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.fashion-ai-settings label {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.fashion-ai-settings input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+}
+
+/* Performance Stats */
+.fashion-ai-stats {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.7);
+    text-align: center;
+    margin-top: 8px;
+    padding: 6px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+    #fashion-ai-search-container {
+        width: calc(100vw - 20px);
+        right: 10px;
+        top: 10px;
+    }
+    
+    .fashion-ai-details-popup {
+        width: calc(100vw - 20px);
+        padding: 16px;
+    }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+    .fashion-ai-details-popup {
+        background: #2d3748;
+        color: #e2e8f0;
+        border-color: #4a5568;
+    }
+    
+    .fashion-ai-details-popup h3 {
+        color: #e2e8f0;
+        border-color: #667eea;
+    }
+    
+    .fashion-ai-details-popup p {
+        color: #cbd5e0;
+    }
+    
+    .fashion-ai-details-popup strong {
+        color: #e2e8f0;
+    }
+    
+    .fashion-ai-details-popup li {
+        border-color: #4a5568;
+    }
+}
+
+/* Animation for new highlights */
+@keyframes fadeInScale {
+    0% {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.fashion-ai-highlight.new {
+    animation: fadeInScale 0.5s ease-out;
+}
+
+/* Pulse animation for high matches */
+@keyframes pulse {
+    0% { box-shadow: 0 0 20px rgba(50, 205, 50, 0.3); }
+    50% { box-shadow: 0 0 30px rgba(50, 205, 50, 0.6); }
+    100% { box-shadow: 0 0 20px rgba(50, 205, 50, 0.3); }
+}
+
+.fashion-ai-highlight.excellent-match {
+    animation: pulse 2s infinite;
+}
+
+/* Accessibility */
+.fashion-ai-highlight:focus-visible {
+    outline: 3px solid #667eea;
+    outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  #chat-button,
-  #chat-icon,
-  #chat-window {
-    transition: none !important;
-  }
-}
-
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-  #chat-button {
-    border: 2px solid #000;
-  }
-  
-  #chat-window {
-    border: 2px solid #000;
-  }
-}
-
-/* Print styles */
-@media print {
-  #chat-button,
-  #chat-window {
-    display: none !important;
-  }
+    .fashion-ai-highlight,
+    .fashion-ai-details-popup button,
+    #fashion-ai-search-container button,
+    #fashion-ai-search-container input {
+        transition: none;
+    }
+    
+    .fashion-ai-loading {
+        animation: none;
+    }
+    
+    .fashion-ai-highlight.new,
+    .fashion-ai-highlight.excellent-match {
+        animation: none;
+    }
 }

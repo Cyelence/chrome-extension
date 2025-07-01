@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Fashion Finder Settings</title>
+    <style>
+        body { font-family: sans-serif; padding: 10px 20px; width: 300px; }
+        h2 { text-align: center; }
+        .setting { display: flex; align-items: center; justify-content: space-between; margin-top: 20px; }
+        #status { margin-top: 15px; text-align: center; font-size: 12px; color: green; }
+    </style>
+</head>
+<body>
+    <h2>AI Fashion Finder Settings</h2>
+    <div class="setting">
+        <label for="ollama-toggle">Enable Ollama Mode</label>
+        <input type="checkbox" id="ollama-toggle">
+    </div>
+    <p style="font-size: 12px; color: #555;">
+        For power users. Requires Ollama to be installed and running with the 'llava' model pulled.
+    </p>
+    <div id="status"></div>
+    <script src="settings.js"></script>
+</body>
+</html>
