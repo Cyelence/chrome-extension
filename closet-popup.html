@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Closet</title>
+    <link rel="stylesheet" href="closet-styles.css">
+</head>
+<body>
+    <div class="closet-container">
+        <!-- Header -->
+        <header class="closet-header">
+            <div class="header-content">
+                <h1>👗 My Digital Closet</h1>
+                <div class="closet-stats">
+                    <span class="stat-item">
+                        <span class="stat-number" id="totalItems">0</span>
+                        <span class="stat-label">Items</span>
+                    </span>
+                    <span class="stat-item">
+                        <span class="stat-number" id="totalValue">$0</span>
+                        <span class="stat-label">Total Value</span>
+                    </span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Controls -->
+        <div class="closet-controls">
+            <div class="search-container">
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    placeholder="Search your closet..." 
+                    class="search-input"
+                >
+                <button id="addItemBtn" class="add-item-btn" title="Save current page item">
+                    <span>+ Add Item</span>
+                </button>
+            </div>
+            
+            <div class="filter-container">
+                <div class="filter-group">
+                    <label>Category:</label>
+                    <select id="categoryFilter" class="filter-select">
+                        <option value="all">All Categories</option>
+                        <option value="tops">👔 Tops</option>
+                        <option value="bottoms">👖 Bottoms</option>
+                        <option value="outerwear">🧥 Outerwear</option>
+                        <option value="dresses">👗 Dresses</option>
+                        <option value="shoes">👠 Shoes</option>
+                        <option value="accessories">👜 Accessories</option>
+                        <option value="other">📦 Other</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>Status:</label>
+                    <select id="statusFilter" class="filter-select">
+                        <option value="all">All Status</option>
+                        <option value="want">❤️ Want</option>
+                        <option value="purchased">🛒 Purchased</option>
+                        <option value="owned">✅ Owned</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label>Sort by:</label>
+                    <select id="sortBy" class="filter-select">
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="price-high">Price: High to Low</option>
+                        <option value="price-low">Price: Low to High</option>
+                        <option value="brand">Brand A-Z</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Items Grid -->
+        <div class="closet-content">
+            <div id="itemsGrid" class="items-grid">
+                <!-- Items will be dynamically populated -->
+            </div>
+            
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <div class="empty-icon">👗</div>
+                <h3>Your closet is empty</h3>
+                <p>Start building your digital wardrobe by adding items from any website!</p>
+                <button id="emptyAddBtn" class="primary-btn">Add Your First Item</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Item Detail Modal -->
+    <div id="itemModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Item Details</h2>
+                <button id="closeModal" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="item-detail-container">
+                    <div class="item-image-container">
+                        <img id="modalImage" src="" alt="Item" class="item-detail-image">
+                    </div>
+                    <div class="item-info">
+                        <div class="item-detail-field">
+                            <label>Status:</label>
+                            <select id="modalStatus" class="status-select">
+                                <option value="want">❤️ Want to Buy</option>
+                                <option value="purchased">🛒 Just Purchased</option>
+                                <option value="owned">✅ Own It</option>
+                            </select>
+                        </div>
+                        <div class="item-detail-field">
+                            <label>Category:</label>
+                            <select id="modalCategory">
+                                <option value="tops">👔 Tops</option>
+                                <option value="bottoms">👖 Bottoms</option>
+                                <option value="outerwear">🧥 Outerwear</option>
+                                <option value="dresses">👗 Dresses</option>
+                                <option value="shoes">👠 Shoes</option>
+                                <option value="accessories">👜 Accessories</option>
+                                <option value="other">📦 Other</option>
+                            </select>
+                        </div>
+                        <div class="item-detail-field">
+                            <label>Brand:</label>
+                            <input type="text" id="modalBrand" placeholder="Brand name">
+                        </div>
+                        <div class="item-detail-field">
+                            <label>Price:</label>
+                            <input type="text" id="modalPrice" placeholder="$0.00">
+                        </div>
+                        <div class="item-detail-field">
+                            <label>Size:</label>
+                            <input type="text" id="modalSize" placeholder="Size">
+                        </div>
+                        <div class="item-detail-field">
+                            <label>Color:</label>
+                            <input type="text" id="modalColor" placeholder="Color">
+                        </div>
+                        <div class="item-detail-field">
+                            <label>Notes:</label>
+                            <textarea id="modalNotes" placeholder="Add notes about this item..." rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="item-metadata">
+                    <div class="metadata-item">
+                        <span class="metadata-label">Added:</span>
+                        <span id="modalDateAdded">-</span>
+                    </div>
+                    <div class="metadata-item">
+                        <span class="metadata-label">Owned for:</span>
+                        <span id="modalOwnershipDuration">-</span>
+                    </div>
+                    <div class="metadata-item">
+                        <span class="metadata-label">Source:</span>
+                        <a id="modalOriginalLink" href="#" target="_blank" class="source-link">View Original</a>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="deleteItem" class="delete-btn">Delete Item</button>
+                <button id="saveItem" class="primary-btn">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Add Modal -->
+    <div id="quickAddModal" class="modal" style="display: none;">
+        <div class="modal-content quick-add-modal">
+            <div class="modal-header">
+                <h2>Add Item to Closet</h2>
+                <button id="closeQuickAdd" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="quick-add-form">
+                    <div class="detected-item" id="detectedItem">
+                        <!-- Auto-detected item info will appear here -->
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Status:</label>
+                            <select id="quickStatus">
+                                <option value="want">❤️ Want to Buy</option>
+                                <option value="purchased">🛒 Just Purchased</option>
+                                <option value="owned">✅ Own It</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Category:</label>
+                            <select id="quickCategory">
+                                <option value="tops">👔 Tops</option>
+                                <option value="bottoms">👖 Bottoms</option>
+                                <option value="outerwear">🧥 Outerwear</option>
+                                <option value="dresses">👗 Dresses</option>
+                                <option value="shoes">👠 Shoes</option>
+                                <option value="accessories">👜 Accessories</option>
+                                <option value="other">📦 Other</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancelQuickAdd" class="secondary-btn">Cancel</button>
+                <button id="saveQuickAdd" class="primary-btn">Add to Closet</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="closet-popup.js"></script>
+</body>
+</html> 

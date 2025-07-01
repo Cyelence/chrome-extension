@@ -1,24 +1,31 @@
 {
   "manifest_version": 3,
-  "name": "AI Fashion Finder",
+  "name": "Digital Closet - Wardrobe Tracker",
   "version": "1.0",
-  "description": "Uses local AI to find fashion items on any e-commerce site.",
+  "description": "Track your fashion purchases and build a digital wardrobe from any website.",
   "permissions": [
     "storage",
     "activeTab",
-    "scripting"
+    "scripting",
+    "tabs"
   ],
   "host_permissions": [
     "<all_urls>"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "closet-background.js"
   },
   "action": {
-    "default_title": "AI Fashion Finder"
+    "default_title": "My Digital Closet",
+    "default_popup": "closet-popup.html"
   },
   "options_page": "settings.html",
   "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["closet-content.js"],
+      "run_at": "document_end"
+    },
     {
       "matches": ["<all_urls>"],
       "js": ["ProductFinder.js", "content.js"],
@@ -31,8 +38,14 @@
         "models/*",
         "ProductFinder.js",
         "ai-worker.js",
+        "ai-worker-lite.js",
+        "ai-config.js",
         "dev-config.js",
-        "debug-helper.js"
+        "debug-helper.js",
+        "closet-popup.html",
+        "closet-popup.js",
+        "closet-styles.css",
+        "closet-content.js"
       ],
       "matches": ["<all_urls>"]
     }

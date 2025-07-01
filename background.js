@@ -13,16 +13,35 @@ initializeAIWorker();
 async function initializeAIWorker() {
   console.log('🤖 Initializing AI Worker in background script...');
   
+  // Broadcast initialization start
+  broadcastToAllTabs({
+    type: 'AI_INITIALIZATION_PROGRESS',
+    payload: { status: '🚀 Starting lightweight AI initialization...' }
+  });
+  
   try {
-    aiWorker = new Worker(chrome.runtime.getURL('ai-worker.js'), { type: 'module' });
+    aiWorker = new Worker(chrome.runtime.getURL('ai-worker-lite.js'), { type: 'module' });
     
     aiWorker.onmessage = (event) => {
       const { type, payload } = event.data;
       console.log('Background received worker message:', type);
       
+      if (type === 'WORKER_READY') {
+        console.log('🔧 AI Worker script loaded, starting initialization...');
+        // Worker script is loaded, now initialize it
+        aiWorker.postMessage({ type: 'INITIALIZE' });
+        return;
+      }
+      
       if (type === 'READY') {
         workerReady = true;
-        console.log('✅ AI Worker ready in background script');
+        console.log('✅ AI Worker fully initialized and ready');
+        
+        // Broadcast ready status
+        broadcastToAllTabs({
+          type: 'AI_INITIALIZATION_PROGRESS',
+          payload: { status: '✅ Lightweight AI ready! You can now search for fashion items.' }
+        });
         return;
       }
       
@@ -63,8 +82,7 @@ async function initializeAIWorker() {
       workerReady = false;
     };
     
-    // Initialize the worker
-    aiWorker.postMessage({ type: 'INITIALIZE' });
+    // Don't initialize immediately - wait for WORKER_READY message
     
   } catch (error) {
     console.error('❌ Failed to initialize AI Worker in background:', error);
@@ -110,12 +128,36 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 async function handleAIWorkerRequest(request, sender, sendResponse) {
   try {
+    // Wait for worker to be ready with timeout
     if (!aiWorker || !workerReady) {
-      sendResponse({ 
-        success: false, 
-        error: 'AI Worker not ready' 
+      console.log('⏳ AI Worker not ready, waiting...');
+      
+      // Wait up to 30 seconds for worker to be ready (lightweight mode)
+      const waitForWorker = new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Lightweight AI Worker initialization timeout (30s)'));
+        }, 30000);
+        
+        const checkReady = setInterval(() => {
+          if (aiWorker && workerReady) {
+            clearTimeout(timeout);
+            clearInterval(checkReady);
+            console.log('✅ AI Worker is now ready');
+            resolve();
+          }
+        }, 500); // Check every 500ms
       });
-      return;
+      
+      try {
+        await waitForWorker;
+      } catch (error) {
+        console.error('❌ AI Worker failed to become ready:', error);
+        sendResponse({ 
+          success: false, 
+          error: error.message
+        });
+        return;
+      }
     }
     
     // Generate unique request ID

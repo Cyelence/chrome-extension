@@ -25,8 +25,66 @@
             clearHighlights();
         } else if (request.type === 'GET_STATS') {
             sendResponse(getPerformanceStats());
+        } else if (request.type === 'AI_INITIALIZATION_PROGRESS') {
+            handleAIInitializationProgress(request.payload);
         }
     });
+
+    function handleAIInitializationProgress(payload) {
+        console.log('AI Initialization Progress:', payload.status);
+        
+        // Update UI if it exists
+        if (fashionAISearchInstance && fashionAISearchInstance.ui) {
+            fashionAISearchInstance.updateStatus(payload.status);
+        }
+        
+        // Show notification for important updates
+        if (payload.status.includes('ready')) {
+            showSuccessNotification('AI Fashion Finder is ready to use!');
+        }
+    }
+
+    function showSuccessNotification(message) {
+        // Remove existing notifications
+        document.querySelectorAll('.fashion-ai-success-notification').forEach(el => el.remove());
+        
+        const notification = document.createElement('div');
+        notification.className = 'fashion-ai-success-notification';
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            padding: 16px 20px;
+            border-radius: 12px;
+            z-index: 100000;
+            font-family: system-ui, -apple-system, sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            max-width: 350px;
+            box-shadow: 0 8px 24px rgba(76, 175, 80, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            animation: slideInRight 0.3s ease-out;
+        `;
+        notification.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 18px;">✅</span>
+                <span>${message}</span>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 4 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.style.animation = 'slideOutRight 0.3s ease-in';
+                setTimeout(() => notification.remove(), 300);
+            }
+        }, 4000);
+    }
 
     async function handleToggleUI() {
         console.log('Processing TOGGLE_UI message');

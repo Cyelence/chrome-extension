@@ -83,8 +83,8 @@ class ProductFinder {
         
         return new Promise((resolve, reject) => {
             const timeout = setTimeout(() => {
-                reject(new Error('Worker initialization timeout'));
-            }, 30000);
+                reject(new Error('AI Worker initialization timeout (30s)'));
+            }, 180000); // 3 minutes for heavy AI model downloads
 
             // Check if worker is already ready by sending a test message
             this._sendWorkerMessage({ type: 'INITIALIZE' })
@@ -102,9 +102,10 @@ class ProductFinder {
     
     async _sendWorkerMessage(message) {
         return new Promise((resolve, reject) => {
+            // Extended timeout for AI initialization
             const timeout = setTimeout(() => {
-                reject(new Error('Worker message timeout'));
-            }, 15000);
+                reject(new Error('Worker message timeout (3m) - AI models may still be loading'));
+            }, 180000); // 3 minutes for heavy AI model downloads
             
             chrome.runtime.sendMessage({
                 type: 'AI_WORKER_REQUEST',
@@ -114,7 +115,9 @@ class ProductFinder {
                 if (response && response.success !== false) {
                     resolve(response);
                 } else {
-                    reject(new Error(response?.error || 'Worker communication failed'));
+                    const errorMsg = response?.error || 'Worker communication failed';
+                    console.error('Worker communication error:', errorMsg);
+                    reject(new Error(errorMsg));
                 }
             });
         });
@@ -187,6 +190,7 @@ class ProductFinder {
                 this._proceedWithCachedQuery();
             } else {
                 // Parse query with AI via background script
+                this.statusCallback('🤖 Initializing AI models (first time may take 30s)...');
                 try {
                     await this._sendWorkerMessage({
                         type: 'PARSE_QUERY',
@@ -194,7 +198,12 @@ class ProductFinder {
                     });
                 } catch (error) {
                     console.error('Failed to send query parsing request:', error);
-                    this.statusCallback('Failed to parse query: ' + error.message);
+                    
+                    if (error.message.includes('timeout') || error.message.includes('not ready')) {
+                        this.statusCallback('❌ AI models still loading. Please wait and try again in a few moments.');
+                    } else {
+                        this.statusCallback('❌ Failed to parse query: ' + error.message);
+                    }
                     this.isProcessing = false;
                 }
             }
