@@ -23,13 +23,8 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["closet-content.js"],
+      "js": ["closet-content.js", "closet-overlay.js"],
       "run_at": "document_end"
-    },
-    {
-      "matches": ["<all_urls>"],
-      "js": ["ProductFinder.js", "content.js"],
-      "css": ["styles.css"]
     }
   ],
   "web_accessible_resources": [
@@ -45,7 +40,8 @@
         "closet-popup.html",
         "closet-popup.js",
         "closet-styles.css",
-        "closet-content.js"
+        "closet-content.js",
+        "closet-overlay.js"
       ],
       "matches": ["<all_urls>"]
     }
