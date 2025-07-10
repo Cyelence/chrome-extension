@@ -334,32 +334,181 @@ class ItemDetector {
     }
     
     detectCategory() {
-        let category = 'other';
-        
         const pageText = document.body.textContent.toLowerCase();
-        const title = document.title.toLowerCase();
         const url = window.location.href.toLowerCase();
+        const title = (document.title || '').toLowerCase();
+        const metaKeywords = (document.querySelector('meta[name="keywords"]')?.content || '').toLowerCase();
+        const breadcrumbs = this.getBreadcrumbText().toLowerCase();
         
+        // Enhanced category detection with scoring system
         const categoryKeywords = {
-            'tops': ['shirt', 'blouse', 'top', 'tee', 't-shirt', 'polo', 'tank', 'camisole'],
-            'bottoms': ['pants', 'jeans', 'trousers', 'shorts', 'leggings', 'skirt'],
-            'outerwear': ['jacket', 'coat', 'blazer', 'cardigan', 'hoodie', 'sweater', 'vest'],
-            'dresses': ['dress', 'gown', 'frock', 'sundress', 'maxi', 'midi'],
-            'shoes': ['shoes', 'sneakers', 'boots', 'heels', 'flats', 'sandals', 'loafers'],
-            'accessories': ['bag', 'purse', 'wallet', 'belt', 'hat', 'scarf', 'jewelry', 'watch']
+            'shoes': {
+                primary: ['shoes', 'sneakers', 'boots', 'sandals', 'heels', 'loafers', 'flats', 'pumps', 'oxfords', 'trainers', 'footwear'],
+                secondary: ['nike', 'adidas', 'jordan', 'converse', 'vans', 'puma', 'running', 'basketball', 'athletic'],
+                patterns: [/\b\w+\s+shoes?\b/, /\b\w+\s+boots?\b/, /\b\w+\s+sneakers?\b/],
+                urlPatterns: ['/shoes/', '/footwear/', '/sneakers/', '/boots/']
+            },
+            'tops': {
+                primary: ['shirt', 'blouse', 'top', 'tee', 't-shirt', 'tank', 'polo', 'sweater', 'cardigan', 'pullover'],
+                secondary: ['cotton', 'sleeve', 'collar', 'button', 'crew neck', 'v-neck'],
+                patterns: [/\b\w+\s+shirt\b/, /\b\w+\s+top\b/, /\b\w+\s+tee\b/],
+                urlPatterns: ['/shirts/', '/tops/', '/blouses/', '/sweaters/']
+            },
+            'bottoms': {
+                primary: ['pants', 'jeans', 'trousers', 'shorts', 'leggings', 'chinos', 'slacks', 'joggers'],
+                secondary: ['waist', 'inseam', 'denim', 'khaki', 'cargo'],
+                patterns: [/\b\w+\s+pants?\b/, /\b\w+\s+jeans?\b/],
+                urlPatterns: ['/pants/', '/jeans/', '/bottoms/', '/shorts/']
+            },
+            'outerwear': {
+                primary: ['jacket', 'coat', 'blazer', 'hoodie', 'windbreaker', 'parka', 'vest', 'cardigan'],
+                secondary: ['zip', 'hood', 'layer', 'weather', 'outdoor'],
+                patterns: [/\b\w+\s+jacket\b/, /\b\w+\s+coat\b/],
+                urlPatterns: ['/jackets/', '/coats/', '/outerwear/']
+            },
+            'dresses': {
+                primary: ['dress', 'gown', 'frock', 'sundress', 'maxi', 'midi', 'mini'],
+                secondary: ['occasion', 'formal', 'cocktail', 'evening'],
+                patterns: [/\b\w+\s+dress\b/],
+                urlPatterns: ['/dresses/', '/gowns/']
+            },
+            'accessories': {
+                primary: ['bag', 'purse', 'wallet', 'belt', 'hat', 'cap', 'scarf', 'gloves', 'jewelry', 'watch', 'sunglasses'],
+                secondary: ['leather', 'strap', 'buckle', 'chain', 'clasp'],
+                patterns: [/\b\w+\s+bag\b/, /\b\w+\s+wallet\b/],
+                urlPatterns: ['/bags/', '/accessories/', '/jewelry/']
+            },
+            'underwear': {
+                primary: ['underwear', 'bra', 'panties', 'boxers', 'briefs', 'lingerie', 'socks', 'stockings', 'tights'],
+                secondary: ['intimate', 'undergarment'],
+                patterns: [],
+                urlPatterns: ['/underwear/', '/lingerie/', '/intimates/']
+            }
         };
         
-        for (const [cat, keywords] of Object.entries(categoryKeywords)) {
-            for (const keyword of keywords) {
-                if (title.includes(keyword) || url.includes(keyword) || pageText.includes(keyword)) {
-                    category = cat;
-                    break;
-                }
-            }
-            if (category !== 'other') break;
+        const scores = {};
+        
+        // Initialize scores
+        for (const category of Object.keys(categoryKeywords)) {
+            scores[category] = 0;
         }
         
-        return category;
+        // Combine all text sources for analysis
+        const allText = [pageText, url, title, metaKeywords, breadcrumbs].join(' ').toLowerCase();
+        
+        // Score each category
+        for (const [category, keywords] of Object.entries(categoryKeywords)) {
+            // Primary keywords (high weight)
+            for (const keyword of keywords.primary) {
+                const count = (allText.match(new RegExp(keyword, 'g')) || []).length;
+                scores[category] += count * 10;
+                
+                // Extra points for title/URL matches
+                if (title.includes(keyword)) scores[category] += 15;
+                if (url.includes(keyword)) scores[category] += 12;
+                if (breadcrumbs.includes(keyword)) scores[category] += 8;
+            }
+            
+            // Secondary keywords (medium weight)
+            for (const keyword of keywords.secondary) {
+                const count = (allText.match(new RegExp(keyword, 'g')) || []).length;
+                scores[category] += count * 3;
+            }
+            
+            // Pattern matching (medium weight)
+            for (const pattern of keywords.patterns) {
+                const matches = allText.match(pattern) || [];
+                scores[category] += matches.length * 5;
+            }
+            
+            // URL pattern matching (high weight)
+            for (const urlPattern of keywords.urlPatterns) {
+                if (url.includes(urlPattern)) {
+                    scores[category] += 20;
+                }
+            }
+        }
+        
+        // Special case adjustments
+        this.applySpecialCategoryRules(scores, allText, url);
+        
+        // Find the highest scoring category
+        let bestCategory = 'other';
+        let highestScore = 0;
+        
+        for (const [category, score] of Object.entries(scores)) {
+            if (score > highestScore) {
+                highestScore = score;
+                bestCategory = category;
+            }
+        }
+        
+        // Only return a category if we have reasonable confidence
+        return highestScore >= 3 ? bestCategory : 'other';
+    }
+    
+    getBreadcrumbText() {
+        // Try to find breadcrumb navigation
+        const breadcrumbSelectors = [
+            'nav[aria-label*="breadcrumb"]',
+            '.breadcrumb',
+            '.breadcrumbs',
+            '[class*="breadcrumb"]',
+            'ol.breadcrumb',
+            'ul.breadcrumb'
+        ];
+        
+        for (const selector of breadcrumbSelectors) {
+            const element = document.querySelector(selector);
+            if (element) {
+                return element.textContent || '';
+            }
+        }
+        
+        return '';
+    }
+    
+    applySpecialCategoryRules(scores, allText, url) {
+        // Shoe-specific adjustments
+        if (allText.includes('size') && (allText.includes('athletic') || allText.includes('sport'))) {
+            scores.shoes += 5;
+        }
+        
+        // If we see "men's shoes" or "women's shoes" patterns
+        if (/\b(men'?s?|women'?s?|kids?)\s+(shoes?|sneakers?|boots?)\b/.test(allText)) {
+            scores.shoes += 15;
+        }
+        
+        // Brand-based shoe detection
+        const shoebrands = ['nike', 'adidas', 'jordan', 'converse', 'vans', 'puma', 'reebok', 'new balance'];
+        for (const brand of shoebrands) {
+            if (allText.includes(brand)) {
+                scores.shoes += 8;
+            }
+        }
+        
+        // Clothing size indicators that might conflict with shoes
+        if (allText.includes('xs') || allText.includes('small') || allText.includes('medium') || allText.includes('large')) {
+            // This could be clothing, reduce shoe score slightly if no other shoe indicators
+            if (!allText.includes('sneaker') && !allText.includes('boot') && !url.includes('shoe')) {
+                scores.shoes -= 2;
+            }
+        }
+        
+        // Dress/formal wear indicators
+        if (allText.includes('occasion') || allText.includes('formal') || allText.includes('wedding')) {
+            scores.dresses += 5;
+        }
+        
+        // Athletic wear
+        if (allText.includes('athletic') || allText.includes('sport') || allText.includes('gym')) {
+            if (allText.includes('shirt') || allText.includes('top')) {
+                scores.tops += 5;
+            }
+            if (allText.includes('pants') || allText.includes('shorts')) {
+                scores.bottoms += 5;
+            }
+        }
     }
     
     detectSize() {

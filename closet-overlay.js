@@ -7,12 +7,18 @@ class ClosetOverlay {
         this.overlay = null;
         this.checkInterval = null;
         this.observing = false;
+        this.processedItems = new Set(); // Track items we've already shown
+        this.dismissedItems = new Set(); // Track items user dismissed
+        this.currentItemId = null;
         
         this.init();
     }
     
     init() {
         console.log('🔍 Digital Closet auto-detection initialized');
+        
+        // Load dismissed items from storage
+        this.loadDismissedItems();
         
         // Wait for page to load
         if (document.readyState === 'loading') {
@@ -34,14 +40,35 @@ class ClosetOverlay {
         });
     }
     
+    async loadDismissedItems() {
+        try {
+            const result = await chrome.storage.local.get(['dismissedItems']);
+            if (result.dismissedItems) {
+                this.dismissedItems = new Set(result.dismissedItems);
+            }
+        } catch (error) {
+            console.log('Could not load dismissed items:', error);
+        }
+    }
+    
+    async saveDismissedItems() {
+        try {
+            await chrome.storage.local.set({
+                dismissedItems: Array.from(this.dismissedItems)
+            });
+        } catch (error) {
+            console.log('Could not save dismissed items:', error);
+        }
+    }
+    
     startDetection() {
         // Check immediately
         this.checkForProduct();
         
-        // Check periodically for dynamic content
+        // Check periodically for dynamic content (less aggressive)
         this.checkInterval = setInterval(() => {
             this.checkForProduct();
-        }, 3000);
+        }, 5000);
         
         // Watch for URL changes (SPA navigation)
         this.watchForUrlChanges();
@@ -58,7 +85,22 @@ class ClosetOverlay {
             // New product detected!
             try {
                 this.detectedItem = await this.detectItem();
-                this.showOverlay();
+                this.currentItemId = this.generateItemId(this.detectedItem);
+                
+                // Check if we've already processed or dismissed this item
+                if (this.processedItems.has(this.currentItemId) || 
+                    this.dismissedItems.has(this.currentItemId)) {
+                    console.log('Item already processed or dismissed:', this.currentItemId);
+                    return;
+                }
+                
+                // Check if item has sufficient data to warrant showing
+                if (this.shouldShowItem(this.detectedItem)) {
+                    this.processedItems.add(this.currentItemId);
+                    this.showOverlay();
+                } else {
+                    console.log('Item does not meet quality threshold:', this.detectedItem.title);
+                }
             } catch (error) {
                 console.error('Failed to detect item:', error);
             }
@@ -66,6 +108,23 @@ class ClosetOverlay {
             // No longer on product page
             this.hideOverlay();
         }
+    }
+    
+    generateItemId(item) {
+        // Create a unique ID based on title + URL to prevent duplicates
+        const title = (item.title || '').toLowerCase().trim();
+        const url = window.location.href.split('?')[0]; // Remove query params
+        return btoa(title + '|' + url).replace(/[^a-zA-Z0-9]/g, '').substring(0, 32);
+    }
+    
+    shouldShowItem(item) {
+        // Only show items that have sufficient data
+        const hasTitle = item.title && item.title.trim().length > 3;
+        const hasImage = item.imageUrl && item.imageUrl.length > 0;
+        const hasPrice = item.price && item.price.length > 0;
+        
+        // At least title + (image OR price)
+        return hasTitle && (hasImage || hasPrice);
     }
     
     detectIfProductPage() {
@@ -116,7 +175,8 @@ class ClosetOverlay {
         if (hasEcommerceKeywords) score += 1;
         if (hasSizeSelectors) score += 1;
         
-        return score >= 3;
+        // Be more strict - require higher confidence
+        return score >= 5;
     }
     
     async detectItem() {
@@ -179,10 +239,10 @@ class ClosetOverlay {
                 </div>
                 <div class="closet-overlay-actions">
                     <select class="closet-overlay-status">
-                        <option value="want">❤️ Want to Buy</option>
-                        <option value="purchased">🛒 Just Purchased</option>
-                        <option value="owned">✅ Already Own</option>
+                        <option value="want">Want</option>
+                        <option value="purchased">Purchased</option>
                     </select>
+                    <button class="closet-overlay-dismiss">Not Now</button>
                     <button class="closet-overlay-add">Add to Closet</button>
                 </div>
             </div>
@@ -193,6 +253,7 @@ class ClosetOverlay {
         
         // Add event listeners
         this.overlay.querySelector('.closet-overlay-close').addEventListener('click', () => this.hideOverlay());
+        this.overlay.querySelector('.closet-overlay-dismiss').addEventListener('click', () => this.dismissItem());
         this.overlay.querySelector('.closet-overlay-add').addEventListener('click', () => this.addToCloset());
         
         // Add to page
@@ -342,6 +403,23 @@ class ClosetOverlay {
                 cursor: pointer;
             }
             
+            .closet-overlay-dismiss {
+                background: #6c757d;
+                color: white;
+                border: none;
+                padding: 8px 12px;
+                border-radius: 6px;
+                font-size: 13px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                white-space: nowrap;
+            }
+            
+            .closet-overlay-dismiss:hover {
+                background: #5a6268;
+            }
+            
             .closet-overlay-add {
                 background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 color: white;
@@ -401,6 +479,12 @@ class ClosetOverlay {
             items.unshift(itemData);
             await chrome.storage.local.set({ closetItems: items });
             
+            // Mark this item as dismissed so it won't show again
+            if (this.currentItemId) {
+                this.dismissedItems.add(this.currentItemId);
+                await this.saveDismissedItems();
+            }
+            
             // Show success feedback
             this.showSuccessMessage();
             
@@ -413,6 +497,18 @@ class ClosetOverlay {
             console.error('Failed to add item to closet:', error);
             this.showErrorMessage();
         }
+    }
+    
+    async dismissItem() {
+        if (this.currentItemId) {
+            // Mark this item as dismissed
+            this.dismissedItems.add(this.currentItemId);
+            await this.saveDismissedItems();
+            console.log('Item dismissed:', this.currentItemId);
+        }
+        
+        // Hide overlay
+        this.hideOverlay();
     }
     
     showSuccessMessage() {
@@ -471,6 +567,11 @@ class ClosetOverlay {
             if (window.location.href !== currentUrl) {
                 currentUrl = window.location.href;
                 this.hideOverlay();
+                
+                // Clear processed items for new page (but keep dismissed items)
+                this.processedItems.clear();
+                this.currentItemId = null;
+                
                 // Check new page after brief delay
                 setTimeout(() => this.checkForProduct(), 1000);
             }
@@ -627,25 +728,179 @@ class ClosetOverlay {
     detectCategory() {
         const pageText = document.body.textContent.toLowerCase();
         const url = window.location.href.toLowerCase();
+        const title = (document.title || '').toLowerCase();
+        const metaKeywords = (document.querySelector('meta[name="keywords"]')?.content || '').toLowerCase();
+        const breadcrumbs = this.getBreadcrumbText().toLowerCase();
         
+        // Enhanced category detection with scoring system
         const categoryKeywords = {
-            'tops': ['shirt', 'blouse', 'top', 'tee', 't-shirt'],
-            'bottoms': ['pants', 'jeans', 'trousers', 'shorts'],
-            'outerwear': ['jacket', 'coat', 'blazer', 'hoodie'],
-            'dresses': ['dress', 'gown'],
-            'shoes': ['shoes', 'sneakers', 'boots', 'heels'],
-            'accessories': ['bag', 'purse', 'wallet', 'belt', 'hat']
+            'shoes': {
+                primary: ['shoes', 'sneakers', 'boots', 'sandals', 'heels', 'loafers', 'flats', 'pumps', 'oxfords', 'trainers', 'footwear'],
+                secondary: ['nike', 'adidas', 'jordan', 'converse', 'vans', 'puma', 'running', 'basketball', 'athletic'],
+                patterns: [/\b\w+\s+shoes?\b/, /\b\w+\s+boots?\b/, /\b\w+\s+sneakers?\b/],
+                urlPatterns: ['/shoes/', '/footwear/', '/sneakers/', '/boots/']
+            },
+            'tops': {
+                primary: ['shirt', 'blouse', 'top', 'tee', 't-shirt', 'tank', 'polo', 'sweater', 'cardigan', 'pullover'],
+                secondary: ['cotton', 'sleeve', 'collar', 'button', 'crew neck', 'v-neck'],
+                patterns: [/\b\w+\s+shirt\b/, /\b\w+\s+top\b/, /\b\w+\s+tee\b/],
+                urlPatterns: ['/shirts/', '/tops/', '/blouses/', '/sweaters/']
+            },
+            'bottoms': {
+                primary: ['pants', 'jeans', 'trousers', 'shorts', 'leggings', 'chinos', 'slacks', 'joggers'],
+                secondary: ['waist', 'inseam', 'denim', 'khaki', 'cargo'],
+                patterns: [/\b\w+\s+pants?\b/, /\b\w+\s+jeans?\b/],
+                urlPatterns: ['/pants/', '/jeans/', '/bottoms/', '/shorts/']
+            },
+            'outerwear': {
+                primary: ['jacket', 'coat', 'blazer', 'hoodie', 'windbreaker', 'parka', 'vest', 'cardigan'],
+                secondary: ['zip', 'hood', 'layer', 'weather', 'outdoor'],
+                patterns: [/\b\w+\s+jacket\b/, /\b\w+\s+coat\b/],
+                urlPatterns: ['/jackets/', '/coats/', '/outerwear/']
+            },
+            'dresses': {
+                primary: ['dress', 'gown', 'frock', 'sundress', 'maxi', 'midi', 'mini'],
+                secondary: ['occasion', 'formal', 'cocktail', 'evening'],
+                patterns: [/\b\w+\s+dress\b/],
+                urlPatterns: ['/dresses/', '/gowns/']
+            },
+            'accessories': {
+                primary: ['bag', 'purse', 'wallet', 'belt', 'hat', 'cap', 'scarf', 'gloves', 'jewelry', 'watch', 'sunglasses'],
+                secondary: ['leather', 'strap', 'buckle', 'chain', 'clasp'],
+                patterns: [/\b\w+\s+bag\b/, /\b\w+\s+wallet\b/],
+                urlPatterns: ['/bags/', '/accessories/', '/jewelry/']
+            },
+            'underwear': {
+                primary: ['underwear', 'bra', 'panties', 'boxers', 'briefs', 'lingerie', 'socks', 'stockings', 'tights'],
+                secondary: ['intimate', 'undergarment'],
+                patterns: [],
+                urlPatterns: ['/underwear/', '/lingerie/', '/intimates/']
+            }
         };
         
-        for (const [cat, keywords] of Object.entries(categoryKeywords)) {
-            for (const keyword of keywords) {
-                if (pageText.includes(keyword) || url.includes(keyword)) {
-                    return cat;
+        const scores = {};
+        
+        // Initialize scores
+        for (const category of Object.keys(categoryKeywords)) {
+            scores[category] = 0;
+        }
+        
+        // Combine all text sources for analysis
+        const allText = [pageText, url, title, metaKeywords, breadcrumbs].join(' ').toLowerCase();
+        
+        // Score each category
+        for (const [category, keywords] of Object.entries(categoryKeywords)) {
+            // Primary keywords (high weight)
+            for (const keyword of keywords.primary) {
+                const count = (allText.match(new RegExp(keyword, 'g')) || []).length;
+                scores[category] += count * 10;
+                
+                // Extra points for title/URL matches
+                if (title.includes(keyword)) scores[category] += 15;
+                if (url.includes(keyword)) scores[category] += 12;
+                if (breadcrumbs.includes(keyword)) scores[category] += 8;
+            }
+            
+            // Secondary keywords (medium weight)
+            for (const keyword of keywords.secondary) {
+                const count = (allText.match(new RegExp(keyword, 'g')) || []).length;
+                scores[category] += count * 3;
+            }
+            
+            // Pattern matching (medium weight)
+            for (const pattern of keywords.patterns) {
+                const matches = allText.match(pattern) || [];
+                scores[category] += matches.length * 5;
+            }
+            
+            // URL pattern matching (high weight)
+            for (const urlPattern of keywords.urlPatterns) {
+                if (url.includes(urlPattern)) {
+                    scores[category] += 20;
                 }
             }
         }
         
-        return 'other';
+        // Special case adjustments
+        this.applySpecialCategoryRules(scores, allText, url);
+        
+        // Find the highest scoring category
+        let bestCategory = 'other';
+        let highestScore = 0;
+        
+        for (const [category, score] of Object.entries(scores)) {
+            if (score > highestScore) {
+                highestScore = score;
+                bestCategory = category;
+            }
+        }
+        
+        // Only return a category if we have reasonable confidence
+        return highestScore >= 3 ? bestCategory : 'other';
+    }
+    
+    getBreadcrumbText() {
+        // Try to find breadcrumb navigation
+        const breadcrumbSelectors = [
+            'nav[aria-label*="breadcrumb"]',
+            '.breadcrumb',
+            '.breadcrumbs',
+            '[class*="breadcrumb"]',
+            'ol.breadcrumb',
+            'ul.breadcrumb'
+        ];
+        
+        for (const selector of breadcrumbSelectors) {
+            const element = document.querySelector(selector);
+            if (element) {
+                return element.textContent || '';
+            }
+        }
+        
+        return '';
+    }
+    
+    applySpecialCategoryRules(scores, allText, url) {
+        // Shoe-specific adjustments
+        if (allText.includes('size') && (allText.includes('athletic') || allText.includes('sport'))) {
+            scores.shoes += 5;
+        }
+        
+        // If we see "men's shoes" or "women's shoes" patterns
+        if (/\b(men'?s?|women'?s?|kids?)\s+(shoes?|sneakers?|boots?)\b/.test(allText)) {
+            scores.shoes += 15;
+        }
+        
+        // Brand-based shoe detection
+        const shoebrands = ['nike', 'adidas', 'jordan', 'converse', 'vans', 'puma', 'reebok', 'new balance'];
+        for (const brand of shoebrands) {
+            if (allText.includes(brand)) {
+                scores.shoes += 8;
+            }
+        }
+        
+        // Clothing size indicators that might conflict with shoes
+        if (allText.includes('xs') || allText.includes('small') || allText.includes('medium') || allText.includes('large')) {
+            // This could be clothing, reduce shoe score slightly if no other shoe indicators
+            if (!allText.includes('sneaker') && !allText.includes('boot') && !url.includes('shoe')) {
+                scores.shoes -= 2;
+            }
+        }
+        
+        // Dress/formal wear indicators
+        if (allText.includes('occasion') || allText.includes('formal') || allText.includes('wedding')) {
+            scores.dresses += 5;
+        }
+        
+        // Athletic wear
+        if (allText.includes('athletic') || allText.includes('sport') || allText.includes('gym')) {
+            if (allText.includes('shirt') || allText.includes('top')) {
+                scores.tops += 5;
+            }
+            if (allText.includes('pants') || allText.includes('shorts')) {
+                scores.bottoms += 5;
+            }
+        }
     }
     
     detectSize() {

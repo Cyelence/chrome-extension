@@ -23,7 +23,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["closet-content.js", "closet-overlay.js"],
+      "js": ["closet-content.js", "closet-overlay.js", "closet-floating-icon.js"],
       "run_at": "document_end"
     }
   ],
@@ -41,7 +41,8 @@
         "closet-popup.js",
         "closet-styles.css",
         "closet-content.js",
-        "closet-overlay.js"
+        "closet-overlay.js",
+        "closet-floating-icon.js"
       ],
       "matches": ["<all_urls>"]
     }
