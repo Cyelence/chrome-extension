@@ -5,15 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Digital Closet</title>
     <link rel="stylesheet" href="closet-styles.css">
-    <style>
-        html, body {
-            width: 420px;
-            height: 600px;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-        }
-    </style>
 </head>
 <body>
     <div class="closet-container">
@@ -92,7 +83,7 @@
                 <!-- Items will be dynamically populated -->
             </div>
             
-            <div id="emptyState" class="empty-state" style="display: none;">
+            <div id="emptyState" class="empty-state hidden">
                 <div class="empty-icon">👗</div>
                 <h3>Your closet is empty</h3>
                 <p>Start building your digital wardrobe by adding items from any website!</p>
@@ -102,7 +93,7 @@
     </div>
 
     <!-- Item Detail Modal -->
-    <div id="itemModal" class="modal" style="display: none;">
+    <div id="itemModal" class="modal hidden">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 id="modalTitle">Item Details</h2>
@@ -179,7 +170,7 @@
     </div>
 
     <!-- Quick Add Modal -->
-    <div id="quickAddModal" class="modal" style="display: none;">
+    <div id="quickAddModal" class="modal hidden">
         <div class="modal-content quick-add-modal">
             <div class="modal-header">
                 <h2>Add Item to Closet</h2>

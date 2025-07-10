@@ -160,8 +160,10 @@ class DigitalCloset {
         const emptyState = document.getElementById('emptyState');
         
         if (this.filteredItems.length === 0) {
-            itemsGrid.style.display = 'none';
-            emptyState.style.display = 'block';
+            itemsGrid.classList.add('hidden');
+            itemsGrid.classList.remove('show-grid');
+            emptyState.classList.add('show-block');
+            emptyState.classList.remove('hidden');
             
             if (this.items.length === 0) {
                 emptyState.querySelector('h3').textContent = 'Your closet is empty';
@@ -173,8 +175,10 @@ class DigitalCloset {
             return;
         }
         
-        itemsGrid.style.display = 'grid';
-        emptyState.style.display = 'none';
+        itemsGrid.classList.add('show-grid');
+        itemsGrid.classList.remove('hidden');
+        emptyState.classList.add('hidden');
+        emptyState.classList.remove('show-block');
         
         itemsGrid.innerHTML = this.filteredItems.map(item => this.createItemCard(item)).join('');
         
@@ -255,13 +259,14 @@ class DigitalCloset {
         
         if (detectedItem) {
             detectedItemDiv.innerHTML = `
-                <img src="${detectedItem.imageUrl || ''}" alt="Detected item" onerror="this.style.display='none'">
+                <img src="${detectedItem.imageUrl || ''}" alt="Detected item" class="detected-item-image">
                 <div class="detected-info">
                     <h4>${this.escapeHtml(detectedItem.title || 'Untitled Item')}</h4>
                     <p>${this.escapeHtml(detectedItem.price || 'Price not detected')} • ${this.escapeHtml(detectedItem.source || 'Unknown source')}</p>
                 </div>
             `;
-            detectedItemDiv.style.display = 'flex';
+            detectedItemDiv.classList.add('show-flex');
+            detectedItemDiv.classList.remove('hidden');
             
             // Store detected data
             this.currentDetectedItem = detectedItem;
@@ -273,10 +278,12 @@ class DigitalCloset {
                     <p>Adding from: ${this.escapeHtml(new URL(tab.url).hostname)}</p>
                 </div>
             `;
-            detectedItemDiv.style.display = 'flex';
+            detectedItemDiv.classList.add('show-flex');
+            detectedItemDiv.classList.remove('hidden');
             this.currentDetectedItem = null;
         } else {
-            detectedItemDiv.style.display = 'none';
+            detectedItemDiv.classList.add('hidden');
+            detectedItemDiv.classList.remove('show-flex');
             this.currentDetectedItem = null;
         }
         
@@ -366,9 +373,11 @@ class DigitalCloset {
         const originalLink = document.getElementById('modalOriginalLink');
         if (item.originalUrl) {
             originalLink.href = item.originalUrl;
-            originalLink.style.display = 'inline';
+            originalLink.classList.add('show-inline');
+            originalLink.classList.remove('hidden');
         } else {
-            originalLink.style.display = 'none';
+            originalLink.classList.add('hidden');
+            originalLink.classList.remove('show-inline');
         }
         
         this.showModal('itemModal');
@@ -429,7 +438,8 @@ class DigitalCloset {
     showModal(modalId) {
         const modal = document.getElementById(modalId);
         modal.classList.add('show');
-        modal.style.display = 'flex';
+        modal.classList.add('show-flex');
+        modal.classList.remove('hidden');
         
         // Focus first input
         setTimeout(() => {
@@ -443,7 +453,8 @@ class DigitalCloset {
         modal.classList.remove('show');
         
         setTimeout(() => {
-            modal.style.display = 'none';
+            modal.classList.add('hidden');
+            modal.classList.remove('show-flex');
         }, 300);
     }
     
@@ -453,42 +464,17 @@ class DigitalCloset {
         notification.className = `notification notification-${type}`;
         notification.textContent = message;
         
-        // Style the notification
-        Object.assign(notification.style, {
-            position: 'fixed',
-            top: '20px',
-            right: '20px',
-            padding: '12px 20px',
-            borderRadius: '8px',
-            color: 'white',
-            fontWeight: '600',
-            zIndex: '10000',
-            opacity: '0',
-            transform: 'translateY(-20px)',
-            transition: 'all 0.3s ease'
-        });
-        
-        // Set background color based on type
-        const colors = {
-            success: '#28a745',
-            error: '#dc3545',
-            info: '#17a2b8',
-            warning: '#ffc107'
-        };
-        notification.style.background = colors[type] || colors.info;
-        
         document.body.appendChild(notification);
         
         // Animate in
         setTimeout(() => {
-            notification.style.opacity = '1';
-            notification.style.transform = 'translateY(0)';
+            notification.classList.add('show');
         }, 10);
         
         // Remove after 3 seconds
         setTimeout(() => {
-            notification.style.opacity = '0';
-            notification.style.transform = 'translateY(-20px)';
+            notification.classList.remove('show');
+            notification.classList.add('hide');
             setTimeout(() => {
                 if (notification.parentNode) {
                     notification.parentNode.removeChild(notification);

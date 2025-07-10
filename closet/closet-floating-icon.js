@@ -282,11 +282,11 @@ class ClosetFloatingIcon {
         this.closetPopup.className = 'closet-popup-container';
         this.closetPopup.innerHTML = `
             <div class="closet-popup-header">
-                <h3>My Digital Closet</h3>
+                <h3>Go to webpage</h3>
                 <button class="closet-popup-close">&times;</button>
             </div>
             <div class="closet-popup-content">
-                <iframe class="closet-popup-iframe" src="${chrome.runtime.getURL('closet-popup.html')}"></iframe>
+                <iframe class="closet-popup-iframe" src="${chrome.runtime.getURL('closet/closet-popup.html')}"></iframe>
             </div>
         `;
         
