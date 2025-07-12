@@ -1,6 +1,56 @@
 /* Digital Closet Global Styles */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
+/* Custom 3D perspective utilities */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.rotateY-1 {
+  transform: rotateY(1deg);
+}
+
+.rotateX-2 {
+  transform: rotateX(2deg);
+}
+
+/* Enhanced amber color variations */
+.bg-amber-150 {
+  background-color: #fef3c7;
+}
+
+.bg-amber-750 {
+  background-color: #b45309;
+}
+
+.bg-amber-950 {
+  background-color: #451a03;
+}
+
+.border-amber-750 {
+  border-color: #b45309;
+}
+
+/* Enhanced shadow utilities */
+.shadow-inner {
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+}
+
+.shadow-2xl {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* Wood texture animation */
+@keyframes woodGrain {
+  0% { opacity: 0.1; }
+  50% { opacity: 0.2; }
+  100% { opacity: 0.1; }
+}
+
+.wood-grain {
+  animation: woodGrain 4s ease-in-out infinite;
+}
+
 /* CSS Reset */
 *,
 *::before,
