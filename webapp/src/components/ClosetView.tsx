@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
+import { ClosetItem } from '../types';
 import { ClosetDoors } from './ClosetDoors';
 import { ClosetInterior } from './ClosetInterior';
 import { ClosetControls } from './ClosetControls';
@@ -8,8 +9,8 @@ import { AddItemModal } from './AddItemModal';
 
 export const ClosetView: React.FC = () => {
   const { state } = useApp();
-  const [isClosetOpen, setIsClosetOpen] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
+  const [isClosetOpen, setIsClosetOpen] = useState(true);
+  const [selectedItem, setSelectedItem] = useState<ClosetItem | null>(null);
 
   return (
     <div className="min-h-screen relative overflow-hidden bg-gradient-to-b from-blue-50 to-blue-100">
