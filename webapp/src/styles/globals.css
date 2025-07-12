@@ -14,14 +14,6 @@
   transform: rotateX(2deg);
 }
 
-.rotate-y-90 {
-  transform: rotateY(90deg);
-}
-
-.-rotate-y-90 {
-  transform: rotateY(-90deg);
-}
-
 /* Enhanced amber color variations */
 .bg-amber-150 {
   background-color: #fef3c7;
