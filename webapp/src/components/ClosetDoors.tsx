@@ -128,13 +128,16 @@ export const ClosetDoors: React.FC<ClosetDoorsProps> = ({ isOpen, onToggle }) =>
         </div>
       </div>
 
-      {/* Enhanced door opening instruction */}
+      {/* Door opening instruction */}
       {!isOpen && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="bg-black bg-opacity-60 text-white px-6 py-3 rounded-xl text-sm font-medium animate-pulse shadow-lg backdrop-blur-sm border border-white border-opacity-20">
-            <div className="flex items-center space-x-2">
-              <span>👆</span>
-              <span>Click to open your closet</span>
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+          <div className="bg-black bg-opacity-70 text-white px-8 py-4 rounded-xl text-lg font-medium animate-pulse shadow-2xl backdrop-blur-sm border border-white border-opacity-20">
+            <div className="flex items-center space-x-3">
+              <span className="text-2xl">👆</span>
+              <div>
+                <div className="font-bold">Click to</div>
+                <div className="text-yellow-300">👑 open your closet</div>
+              </div>
             </div>
           </div>
         </div>
