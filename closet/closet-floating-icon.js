@@ -282,16 +282,58 @@ class ClosetFloatingIcon {
         this.closetPopup.className = 'closet-popup-container';
         this.closetPopup.innerHTML = `
             <div class="closet-popup-header">
-                <h3>Go to webpage</h3>
+                <h3>Digital Closet - Open Web App</h3>
                 <button class="closet-popup-close">&times;</button>
             </div>
             <div class="closet-popup-content">
-                <iframe class="closet-popup-iframe" src="${chrome.runtime.getURL('closet/closet-popup.html')}"></iframe>
+                <div style="padding: 20px; text-align: center;">
+                    <h2>🎉 Your Digital Closet Web App</h2>
+                    <p>Experience your closet in a modern React app with advanced features!</p>
+                    <button id="openWebApp" style="
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        color: white;
+                        border: none;
+                        padding: 12px 24px;
+                        border-radius: 8px;
+                        font-weight: 600;
+                        cursor: pointer;
+                        font-size: 16px;
+                        margin: 10px;
+                        transition: transform 0.2s;
+                    ">Open Web App</button>
+                    <br>
+                    <button id="useExtension" style="
+                        background: #6c757d;
+                        color: white;
+                        border: none;
+                        padding: 8px 16px;
+                        border-radius: 6px;
+                        font-size: 14px;
+                        cursor: pointer;
+                        margin: 5px;
+                    ">Use Extension Popup</button>
+                </div>
             </div>
         `;
         
         // Add event listeners
         this.closetPopup.querySelector('.closet-popup-close').addEventListener('click', () => this.closeClosetPopup());
+        this.closetPopup.querySelector('#openWebApp').addEventListener('click', () => {
+            window.open('http://localhost:3000', '_blank');
+            this.closeClosetPopup();
+        });
+        this.closetPopup.querySelector('#useExtension').addEventListener('click', () => {
+            this.closetPopup.innerHTML = `
+                <div class="closet-popup-header">
+                    <h3>Digital Closet Extension</h3>
+                    <button class="closet-popup-close">&times;</button>
+                </div>
+                <div class="closet-popup-content">
+                    <iframe class="closet-popup-iframe" src="${chrome.runtime.getURL('closet/closet-popup.html')}"></iframe>
+                </div>
+            `;
+            this.closetPopup.querySelector('.closet-popup-close').addEventListener('click', () => this.closeClosetPopup());
+        });
         
         // Close on outside click
         document.addEventListener('click', (e) => {

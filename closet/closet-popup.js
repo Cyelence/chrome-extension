@@ -44,6 +44,12 @@ class DigitalCloset {
         document.getElementById('addItemBtn').addEventListener('click', () => this.showQuickAddModal());
         document.getElementById('emptyAddBtn').addEventListener('click', () => this.showQuickAddModal());
         
+        // Open web app button
+        document.getElementById('openWebAppBtn').addEventListener('click', () => {
+            chrome.tabs.create({ url: 'http://localhost:3000' });
+            window.close();
+        });
+        
         // Modal controls
         this.bindModalEventListeners();
     }
