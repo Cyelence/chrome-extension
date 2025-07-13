@@ -3,94 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Digital Closet</title>
+    <title>Digital Wardrobe</title>
     <link rel="stylesheet" href="closet-styles.css">
 </head>
 <body>
-    <div class="closet-container">
-        <!-- Header -->
-        <header class="closet-header">
-            <div class="header-content">
-                <h1>👗 My Digital Closet</h1>
-                <div class="closet-stats">
-                    <span class="stat-item">
-                        <span class="stat-number" id="totalItems">0</span>
-                        <span class="stat-label">Items</span>
-                    </span>
-                    <span class="stat-item">
-                        <span class="stat-number" id="totalValue">$0</span>
-                        <span class="stat-label">Total Value</span>
-                    </span>
-                </div>
-            </div>
-        </header>
-
-        <!-- Controls -->
-        <div class="closet-controls">
-            <div class="search-container">
-                <input 
-                    type="text" 
-                    id="searchInput" 
-                    placeholder="Search your closet..." 
-                    class="search-input"
-                >
-                <button id="addItemBtn" class="add-item-btn" title="Save current page item">
-                    <span>+ Add Item</span>
-                </button>
-                <button id="openWebAppBtn" class="add-item-btn" title="Open full web app" style="background: #28a745; margin-left: 10px;">
-                    <span>🚀 Open Web App</span>
-                </button>
-            </div>
-            
-            <div class="filter-container">
-                <div class="filter-group">
-                    <label>Category:</label>
-                    <select id="categoryFilter" class="filter-select">
-                        <option value="all">All Categories</option>
-                        <option value="tops">👔 Tops</option>
-                        <option value="bottoms">👖 Bottoms</option>
-                        <option value="outerwear">🧥 Outerwear</option>
-                        <option value="dresses">👗 Dresses</option>
-                        <option value="shoes">👠 Shoes</option>
-                        <option value="accessories">👜 Accessories</option>
-                        <option value="other">📦 Other</option>
-                    </select>
-                </div>
-                
-                <div class="filter-group">
-                    <label>Status:</label>
-                    <select id="statusFilter" class="filter-select">
-                        <option value="all">All Status</option>
-                        <option value="want">❤️ Want</option>
-                        <option value="purchased">🛒 Purchased</option>
-                        <option value="owned">✅ Owned</option>
-                    </select>
-                </div>
-                
-                <div class="filter-group">
-                    <label>Sort by:</label>
-                    <select id="sortBy" class="filter-select">
-                        <option value="newest">Newest First</option>
-                        <option value="oldest">Oldest First</option>
-                        <option value="price-high">Price: High to Low</option>
-                        <option value="price-low">Price: Low to High</option>
-                        <option value="brand">Brand A-Z</option>
-                    </select>
-                </div>
-            </div>
+    <div class="extension-popup">
+        <div class="header">
+            <h1>👗 Digital Wardrobe</h1>
+            <p>Your personal style collection</p>
         </div>
 
-        <!-- Items Grid -->
-        <div class="closet-content">
-            <div id="itemsGrid" class="items-grid">
+        <div class="nav-tabs">
+            <button class="nav-tab active" data-tab="closet">My Closet</button>
+            <button class="nav-tab" data-tab="add">Add Item</button>
+            <button class="nav-tab" data-tab="stats">Stats</button>
+        </div>
+
+        <div id="closet-tab" class="tab-content">
+            <div class="category-filter">
+                <button class="filter-btn active" data-category="all">All</button>
+                <button class="filter-btn" data-category="tops">Tops</button>
+                <button class="filter-btn" data-category="bottoms">Bottoms</button>
+                <button class="filter-btn" data-category="shoes">Shoes</button>
+                <button class="filter-btn" data-category="accessories">Accessories</button>
+                <button class="filter-btn" data-category="outerwear">Outerwear</button>
+                <button class="filter-btn" data-category="dresses">Dresses</button>
+            </div>
+
+            <div class="wardrobe-grid" id="wardrobeGrid">
                 <!-- Items will be dynamically populated -->
             </div>
             
             <div id="emptyState" class="empty-state hidden">
-                <div class="empty-icon">👗</div>
-                <h3>Your closet is empty</h3>
-                <p>Start building your digital wardrobe by adding items from any website!</p>
-                <button id="emptyAddBtn" class="primary-btn">Add Your First Item</button>
+                <div class="empty-state-icon">👗</div>
+                <div class="empty-state-text">Your closet is empty</div>
+                <div class="empty-state-subtext">Start building your digital wardrobe!</div>
+            </div>
+        </div>
+
+        <div id="add-tab" class="tab-content" style="display: none;">
+            <div class="shopping-integration">
+                <h3>🛍️ Shopping Integration</h3>
+                <p style="color: #666; margin-bottom: 15px;">Browse any online store and click items to add them to your wardrobe!</p>
+                
+                <div class="detected-item" id="detectedItemContainer" style="display: none;">
+                    <h3>Item Detected!</h3>
+                    <div id="detectedItemContent">
+                        <!-- Auto-detected item info will appear here -->
+                    </div>
+                    <button class="add-btn" id="addDetectedItem">Add to Wardrobe</button>
+                </div>
+            </div>
+
+            <div class="add-item-form">
+                <h3 style="margin-bottom: 20px; color: #333;">Add Item Manually</h3>
+                
+                <div class="form-group">
+                    <label class="form-label">Item Name</label>
+                    <input type="text" class="form-input" id="itemName" placeholder="e.g., Black Leather Jacket">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Brand</label>
+                    <input type="text" class="form-input" id="itemBrand" placeholder="e.g., Nike, Zara, H&M">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Category</label>
+                    <select class="form-select" id="itemCategory">
+                        <option value="">Select Category</option>
+                        <option value="tops">👔 Tops</option>
+                        <option value="bottoms">👖 Bottoms</option>
+                        <option value="shoes">👠 Shoes</option>
+                        <option value="accessories">👜 Accessories</option>
+                        <option value="outerwear">🧥 Outerwear</option>
+                        <option value="dresses">👗 Dresses</option>
+                        <option value="other">📦 Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Price</label>
+                    <input type="number" class="form-input" id="itemPrice" placeholder="0.00" step="0.01">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Color</label>
+                    <input type="text" class="form-input" id="itemColor" placeholder="e.g., Black, Navy Blue">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Size</label>
+                    <input type="text" class="form-input" id="itemSize" placeholder="e.g., M, L, XL">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Status</label>
+                    <select class="form-select" id="itemStatus">
+                        <option value="want">❤️ Want to Buy</option>
+                        <option value="purchased">🛒 Just Purchased</option>
+                        <option value="owned">✅ Own It</option>
+                    </select>
+                </div>
+
+                <button class="add-btn" id="addManualItem">Add to Wardrobe</button>
+            </div>
+        </div>
+
+        <div id="stats-tab" class="tab-content" style="display: none;">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalItemsCount">0</div>
+                    <div class="stat-label">Total Items</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalValueAmount">$0</div>
+                    <div class="stat-label">Total Value</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="topsCount">0</div>
+                    <div class="stat-label">Tops</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="bottomsCount">0</div>
+                    <div class="stat-label">Bottoms</div>
+                </div>
+            </div>
+
+            <div class="add-item-form">
+                <h3 style="margin-bottom: 20px; color: #333;">Most Recent Items</h3>
+                <div class="wardrobe-grid" id="recentItemsGrid">
+                    <!-- Recent items will be populated here -->
+                </div>
+            </div>
+
+            <div class="add-item-form">
+                <h3 style="margin-bottom: 20px; color: #333;">Spending by Category</h3>
+                <div id="categorySpending">
+                    <!-- Category spending will be populated here -->
+                </div>
             </div>
         </div>
     </div>
@@ -156,10 +207,6 @@
                         <span id="modalDateAdded">-</span>
                     </div>
                     <div class="metadata-item">
-                        <span class="metadata-label">Owned for:</span>
-                        <span id="modalOwnershipDuration">-</span>
-                    </div>
-                    <div class="metadata-item">
                         <span class="metadata-label">Source:</span>
                         <a id="modalOriginalLink" href="#" target="_blank" class="source-link">View Original</a>
                     </div>
@@ -168,49 +215,6 @@
             <div class="modal-footer">
                 <button id="deleteItem" class="delete-btn">Delete Item</button>
                 <button id="saveItem" class="primary-btn">Save Changes</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Quick Add Modal -->
-    <div id="quickAddModal" class="modal hidden">
-        <div class="modal-content quick-add-modal">
-            <div class="modal-header">
-                <h2>Add Item to Closet</h2>
-                <button id="closeQuickAdd" class="close-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="quick-add-form">
-                    <div class="detected-item" id="detectedItem">
-                        <!-- Auto-detected item info will appear here -->
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Status:</label>
-                            <select id="quickStatus">
-                                <option value="want">❤️ Want to Buy</option>
-                                <option value="purchased">🛒 Just Purchased</option>
-                                <option value="owned">✅ Own It</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Category:</label>
-                            <select id="quickCategory">
-                                <option value="tops">👔 Tops</option>
-                                <option value="bottoms">👖 Bottoms</option>
-                                <option value="outerwear">🧥 Outerwear</option>
-                                <option value="dresses">👗 Dresses</option>
-                                <option value="shoes">👠 Shoes</option>
-                                <option value="accessories">👜 Accessories</option>
-                                <option value="other">📦 Other</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button id="cancelQuickAdd" class="secondary-btn">Cancel</button>
-                <button id="saveQuickAdd" class="primary-btn">Add to Closet</button>
             </div>
         </div>
     </div>
