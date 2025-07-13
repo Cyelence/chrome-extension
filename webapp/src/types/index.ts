@@ -83,6 +83,10 @@ export interface User {
   // Preferences
   preferredCurrency: string;
   notifications: NotificationSettings;
+  // Authentication
+  isEmailVerified: boolean;
+  dateCreated: Date;
+  lastLogin: Date;
 }
 
 export interface NotificationSettings {
@@ -174,6 +178,10 @@ export interface AppState {
     createCollection: boolean;
     shareCollection: boolean;
     settings: boolean;
+    login: boolean;
+    register: boolean;
+    profile: boolean;
+    forgotPassword: boolean;
   };
 }
 
@@ -268,4 +276,66 @@ export interface ProductData {
   color?: string;
   size?: string;
   availability?: string;
-} 
+}
+
+// Authentication types
+export interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+  token: string | null;
+}
+
+export interface LoginCredentials {
+  email: string;
+  password: string;
+}
+
+export interface RegisterData {
+  username: string;
+  displayName: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
+}
+
+export interface AuthContextType {
+  state: AuthState;
+  login: (credentials: LoginCredentials) => Promise<void>;
+  register: (data: RegisterData) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  logout: () => void;
+  updateProfile: (updates: Partial<User>) => Promise<void>;
+  forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (token: string, newPassword: string) => Promise<void>;
+  verifyEmail: (token: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+}
+
+export interface ProfileUpdateData {
+  displayName?: string;
+  bio?: string;
+  avatar?: string;
+  isPrivate?: boolean;
+  preferredCurrency?: string;
+  notifications?: NotificationSettings;
+}
+
+export interface UserProfile {
+  user: User;
+  stats: {
+    totalItems: number;
+    totalValue: number;
+    totalCollections: number;
+    recentlyAdded: ClosetItem[];
+    topBrands: { brand: string; count: number }[];
+    categoryBreakdown: { category: ItemCategory; count: number }[];
+  };
+  social: {
+    followers: User[];
+    following: User[];
+    isFollowing: boolean;
+    isFollowedBy: boolean;
+  };
+}

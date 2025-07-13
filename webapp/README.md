@@ -22,10 +22,33 @@ A modern web application for managing your digital wardrobe, inspired by Locker'
 - **Multiple Sort Options**: Sort by date, price, or brand
 - **Grid/List Views**: Choose your preferred viewing style
 
+### 🔐 Authentication & Accounts
+- **User Accounts**: Create an account to sync your data across devices
+- **Google Sign-In**: Easy authentication with your Google account
+- **Profile Management**: Customize your profile and preferences
+- **Secure Data**: Your data is protected and private
+
 ### 💾 Data Management
-- **Local Storage**: All data stored locally in your browser
+- **Cloud Sync**: Data synced across all your devices when signed in
+- **Local Storage**: Works offline with local browser storage
 - **Import/Export**: Easy data management and backup
 - **Chrome Extension Integration**: Seamlessly add items from any website
+
+## Setup
+
+### Google OAuth Configuration (Optional)
+
+To enable Google Sign-In functionality:
+
+1. Follow the detailed setup guide in [`GOOGLE_OAUTH_SETUP.md`](./GOOGLE_OAUTH_SETUP.md)
+2. Create a `.env.local` file in the `webapp` directory
+3. Add your Google Client ID:
+   ```bash
+   REACT_APP_GOOGLE_CLIENT_ID=your-client-id-here.apps.googleusercontent.com
+   ```
+4. Restart the development server
+
+The app works without Google OAuth, but users won't be able to create accounts or sync data across devices.
 
 ## How to Use
 
@@ -69,10 +92,22 @@ The web app works seamlessly with the Chrome extension:
 
 ## Data Storage
 
+### With User Account (Recommended)
+- Data is synced securely to the cloud when signed in
+- Access your closet from any device with your account
+- Automatic backup and sync across all devices
+- Enhanced privacy with user-specific data isolation
+
+### Without Account (Guest Mode)
 - All data is stored locally in your browser using localStorage
-- No personal information is sent to external servers
+- Data persists between browser sessions on the same device
+- No data sharing across devices
+- Data is lost if browser storage is cleared
+
+### Privacy & Security
+- Google OAuth is used only for authentication, not data access
 - Your closet data remains private and secure
-- Data persists between browser sessions
+- No personal fashion data is shared with third parties
 
 ## Browser Compatibility
 

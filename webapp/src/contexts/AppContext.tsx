@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
-import { AppState, ClosetItem, Collection, FilterOptions, SectionType, ViewType } from '../types';
+import { AppState, ClosetItem, Collection, FilterOptions, SectionType, ViewType, User } from '../types';
+import { AuthProvider, useAuth } from './AuthContext';
 
 // Actions
 type AppAction = 
@@ -19,7 +20,8 @@ type AppAction =
   | { type: 'SET_FILTERS'; payload: FilterOptions }
   | { type: 'TOGGLE_MODAL'; payload: { modal: keyof AppState['modals']; isOpen: boolean } }
   | { type: 'SET_SELECTED_ITEMS'; payload: string[] }
-  | { type: 'TOGGLE_FAVORITE'; payload: string };
+  | { type: 'TOGGLE_FAVORITE'; payload: string }
+  | { type: 'SET_USER'; payload: User | null };
 
 // Initial state
 const initialState: AppState = {
@@ -49,6 +51,10 @@ const initialState: AppState = {
     createCollection: false,
     shareCollection: false,
     settings: false,
+    login: false,
+    register: false,
+    profile: false,
+    forgotPassword: false,
   },
 };
 
@@ -135,6 +141,9 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ),
       };
     
+    case 'SET_USER':
+      return { ...state, user: action.payload };
+    
     default:
       return state;
   }
@@ -146,9 +155,15 @@ const AppContext = createContext<{
   dispatch: React.Dispatch<AppAction>;
 } | null>(null);
 
-// Provider
-export function AppProvider({ children }: { children: ReactNode }) {
+// Inner Provider (wrapped by AuthProvider)
+function AppProviderInner({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, initialState);
+  const { state: authState } = useAuth();
+
+  // Sync user from auth state to app state
+  useEffect(() => {
+    dispatch({ type: 'SET_USER', payload: authState.user });
+  }, [authState.user]);
 
   // Load data on mount
   useEffect(() => {
@@ -305,6 +320,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <AppContext.Provider value={{ state, dispatch }}>
       {children}
     </AppContext.Provider>
+  );
+}
+
+// Main Provider (wraps with AuthProvider)
+export function AppProvider({ children }: { children: ReactNode }) {
+  return (
+    <AuthProvider>
+      <AppProviderInner>{children}</AppProviderInner>
+    </AuthProvider>
   );
 }
 
