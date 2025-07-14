@@ -1,0 +1,87 @@
+# ================================
+# Server Configuration
+# ================================
+NODE_ENV=development
+PORT=3001
+HOST=localhost
+API_PREFIX=/api/v1
+
+# ================================
+# Database Configuration
+# ================================
+DATABASE_URL=postgresql://username:password@localhost:5432/digital_wardrobe?schema=public
+
+# ================================
+# Authentication & Security
+# ================================
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+JWT_EXPIRES_IN=24h
+JWT_REFRESH_EXPIRES_IN=7d
+SESSION_SECRET=your-session-secret-change-this-in-production
+BCRYPT_ROUNDS=12
+
+# ================================
+# Redis Configuration (Optional)
+# ================================
+REDIS_URL=redis://localhost:6379
+REDIS_PASSWORD=
+REDIS_DB=0
+
+# ================================
+# Email Configuration (Optional)
+# ================================
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+
+# ================================
+# Cloud Storage (Optional)
+# ================================
+# AWS S3
+AWS_ACCESS_KEY_ID=your-aws-access-key
+AWS_SECRET_ACCESS_KEY=your-aws-secret-key
+AWS_REGION=us-east-1
+AWS_S3_BUCKET=digital-wardrobe-images
+
+# Or Cloudinary
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
+
+# ================================
+# Google OAuth (Optional)
+# ================================
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3001/auth/google/callback
+
+# ================================
+# Rate Limiting & Security
+# ================================
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+CORS_ORIGIN=http://localhost:3000,chrome-extension://
+
+# ================================
+# Logging Configuration
+# ================================
+LOG_LEVEL=debug
+LOG_FORMAT=combined
+LOG_FILE_PATH=./logs/app.log
+
+# ================================
+# Application Features
+# ================================
+ENABLE_SWAGGER=true
+ENABLE_ANALYTICS=true
+ENABLE_CACHING=true
+ENABLE_COMPRESSION=true
+
+# ================================
+# Development & Testing
+# ================================
+DEBUG=app:*
+SEED_DATABASE=false
+MOCK_EXTERNAL_APIS=false 
