@@ -3,8 +3,9 @@ class ClosetFloatingIcon {
     constructor() {
         this.floatingIcon = null;
         this.closetPopup = null;
-        this.isPopupOpen = false;
         this.isInitialized = false;
+        this.isVisible = false;
+        this.isPopupOpen = false;
         
         this.init();
     }
@@ -14,6 +15,15 @@ class ClosetFloatingIcon {
         if (window.location.hostname === 'chrome-extension') {
             return;
         }
+        
+        // Listen for messages from background script
+        chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+            if (request.type === 'TOGGLE_FLOATING_ICON') {
+                this.toggleVisibility();
+                sendResponse({ success: true });
+            }
+            return true;
+        });
         
         // Wait for page to load
         if (document.readyState === 'loading') {
@@ -39,26 +49,21 @@ class ClosetFloatingIcon {
                     <path d="M14 2V8H20" fill="none" stroke="white" stroke-width="2"/>
                     <path d="M8 12H16M8 16H16" stroke="white" stroke-width="2" stroke-linecap="round"/>
                 </svg>
-                <span class="closet-icon-tooltip">My Closet</span>
+                <span class="closet-icon-tooltip">Open Digital Closet</span>
             </div>
         `;
         
         // Add styles
         this.addFloatingIconStyles();
         
-        // Add event listeners
-        this.floatingIcon.addEventListener('click', () => this.toggleClosetPopup());
+        // Add event listeners - open extension popup
+        this.floatingIcon.addEventListener('click', () => this.toggleExtensionPopup());
         
-        // Add to page
+        // Add to page (but keep hidden initially)
         document.body.appendChild(this.floatingIcon);
         
-        // Animate in
-        setTimeout(() => {
-            this.floatingIcon.classList.add('closet-floating-icon-show');
-        }, 500);
-        
         this.isInitialized = true;
-        console.log('🎯 Digital Closet floating icon initialized');
+        console.log('🎯 Digital Closet floating icon initialized (hidden)');
     }
     
     addFloatingIconStyles() {
@@ -115,6 +120,11 @@ class ClosetFloatingIcon {
             
             .closet-icon-button:hover svg {
                 transform: scale(1.1);
+            }
+            
+            .closet-floating-icon .closet-icon-button.active {
+                background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+                box-shadow: 0 6px 30px rgba(102, 126, 234, 0.5);
             }
             
             .closet-icon-tooltip {
@@ -242,112 +252,84 @@ class ClosetFloatingIcon {
         document.head.appendChild(styles);
     }
     
-    toggleClosetPopup() {
-        if (this.isPopupOpen) {
-            this.closeClosetPopup();
+    toggleVisibility() {
+        if (!this.floatingIcon) return;
+        
+        this.isVisible = !this.isVisible;
+        
+        if (this.isVisible) {
+            this.floatingIcon.classList.add('closet-floating-icon-show');
+            console.log('👁️ Floating icon shown');
         } else {
-            this.openClosetPopup();
+            this.floatingIcon.classList.remove('closet-floating-icon-show');
+            // Also close popup if it's open
+            if (this.isPopupOpen) {
+                this.closeExtensionPopup();
+            }
+            console.log('🙈 Floating icon hidden');
         }
     }
     
-    openClosetPopup() {
+    toggleExtensionPopup() {
+        if (this.isPopupOpen) {
+            this.closeExtensionPopup();
+        } else {
+            this.openExtensionPopup();
+        }
+    }
+    
+    openExtensionPopup() {
         if (!this.closetPopup) {
-            this.createClosetPopup();
+            this.createExtensionPopup();
         }
         
         this.closetPopup.classList.add('open');
         this.isPopupOpen = true;
+        this.floatingIcon.querySelector('.closet-icon-button').classList.add('active');
         
-        // Update icon state
-        this.floatingIcon.classList.add('active');
-        
-        console.log('📱 Closet popup opened');
+        console.log('📱 Extension popup opened');
     }
     
-    closeClosetPopup() {
+    closeExtensionPopup() {
         if (this.closetPopup) {
             this.closetPopup.classList.remove('open');
         }
         
         this.isPopupOpen = false;
+        this.floatingIcon.querySelector('.closet-icon-button').classList.remove('active');
         
-        // Update icon state
-        this.floatingIcon.classList.remove('active');
-        
-        console.log('📱 Closet popup closed');
+        console.log('📱 Extension popup closed');
     }
     
-    createClosetPopup() {
+    createExtensionPopup() {
         this.closetPopup = document.createElement('div');
         this.closetPopup.className = 'closet-popup-container';
         this.closetPopup.innerHTML = `
             <div class="closet-popup-header">
-                <h3>Digital Closet - Open Web App</h3>
+                <h3>Digital Closet Extension</h3>
                 <button class="closet-popup-close">&times;</button>
             </div>
             <div class="closet-popup-content">
-                <div style="padding: 20px; text-align: center;">
-                    <h2>🎉 Your Digital Closet Web App</h2>
-                    <p>Experience your closet in a modern React app with advanced features!</p>
-                    <button id="openWebApp" style="
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        color: white;
-                        border: none;
-                        padding: 12px 24px;
-                        border-radius: 8px;
-                        font-weight: 600;
-                        cursor: pointer;
-                        font-size: 16px;
-                        margin: 10px;
-                        transition: transform 0.2s;
-                    ">Open Web App</button>
-                    <br>
-                    <button id="useExtension" style="
-                        background: #6c757d;
-                        color: white;
-                        border: none;
-                        padding: 8px 16px;
-                        border-radius: 6px;
-                        font-size: 14px;
-                        cursor: pointer;
-                        margin: 5px;
-                    ">Use Extension Popup</button>
-                </div>
+                <iframe class="closet-popup-iframe" src="${chrome.runtime.getURL('closet/closet-popup.html')}"></iframe>
             </div>
         `;
         
         // Add event listeners
-        this.closetPopup.querySelector('.closet-popup-close').addEventListener('click', () => this.closeClosetPopup());
-        this.closetPopup.querySelector('#openWebApp').addEventListener('click', () => {
-            window.open('http://localhost:3000', '_blank');
-            this.closeClosetPopup();
-        });
-        this.closetPopup.querySelector('#useExtension').addEventListener('click', () => {
-            this.closetPopup.innerHTML = `
-                <div class="closet-popup-header">
-                    <h3>Digital Closet Extension</h3>
-                    <button class="closet-popup-close">&times;</button>
-                </div>
-                <div class="closet-popup-content">
-                    <iframe class="closet-popup-iframe" src="${chrome.runtime.getURL('closet/closet-popup.html')}"></iframe>
-                </div>
-            `;
-            this.closetPopup.querySelector('.closet-popup-close').addEventListener('click', () => this.closeClosetPopup());
-        });
+        this.closetPopup.querySelector('.closet-popup-close').addEventListener('click', () => this.closeExtensionPopup());
         
         // Close on outside click
         document.addEventListener('click', (e) => {
             if (this.isPopupOpen && 
                 !this.closetPopup.contains(e.target) && 
                 !this.floatingIcon.contains(e.target)) {
-                this.closeClosetPopup();
+                this.closeExtensionPopup();
             }
         });
         
         // Close on escape key
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.isPopupOpen) {
-                this.closeClosetPopup();
+                this.closeExtensionPopup();
             }
         });
         
@@ -360,8 +342,10 @@ class ClosetFloatingIcon {
         const checkForUrlChange = () => {
             if (window.location.href !== currentUrl) {
                 currentUrl = window.location.href;
-                // Close popup on navigation
-                this.closeClosetPopup();
+                // Close popup on page navigation
+                if (this.isPopupOpen) {
+                    this.closeExtensionPopup();
+                }
             }
         };
         
@@ -387,6 +371,8 @@ class ClosetFloatingIcon {
         }
         
         this.isInitialized = false;
+        this.isVisible = false;
+        this.isPopupOpen = false;
     }
 }
 
@@ -403,4 +389,4 @@ window.addEventListener('beforeunload', () => {
     if (closetFloatingIcon) {
         closetFloatingIcon.destroy();
     }
-}); 
+});

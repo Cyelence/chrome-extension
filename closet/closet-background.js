@@ -1,9 +1,17 @@
 // Digital Closet Background Script
 
-// Handle extension icon click to open popup
-chrome.action.onClicked.addListener((tab) => {
-    console.log('Digital Closet icon clicked');
-    // The popup will open automatically based on manifest configuration
+// Handle extension icon click to toggle floating icon
+chrome.action.onClicked.addListener(async (tab) => {
+    console.log('Digital Closet icon clicked - toggling floating icon');
+    
+    try {
+        // Send message to content script to toggle floating icon
+        await chrome.tabs.sendMessage(tab.id, { 
+            type: 'TOGGLE_FLOATING_ICON' 
+        });
+    } catch (error) {
+        console.log('Could not toggle floating icon:', error.message);
+    }
 });
 
 // Handle installation

@@ -11,10 +11,33 @@ class ClosetOverlay {
         this.dismissedItems = new Set(); // Track items user dismissed
         this.currentItemId = null;
         
-        this.init();
+        // DISABLED: Automatic overlay detection removed
+        // Users can now only add items manually through the floating icon
+        // this.init();
+        
+        // Only initialize message listeners for manual detection
+        this.initMessageListeners();
+    }
+    
+    initMessageListeners() {
+        // Handle messages from popup for manual item detection
+        chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+            if (request.type === 'DETECT_ITEM') {
+                this.detectItem().then(item => {
+                    sendResponse({ success: true, item: item });
+                }).catch(error => {
+                    sendResponse({ success: false, error: error.message });
+                });
+                return true;
+            }
+        });
+        
+        console.log('🔍 Digital Closet manual item detection available (automatic overlay disabled)');
     }
     
     init() {
+        // DISABLED: Automatic detection removed to prevent annoying popups
+        /*
         console.log('🔍 Digital Closet auto-detection initialized');
         
         // Load dismissed items from storage
@@ -26,6 +49,7 @@ class ClosetOverlay {
         } else {
             this.startDetection();
         }
+        */
         
         // Handle messages from popup
         chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -61,6 +85,8 @@ class ClosetOverlay {
         }
     }
     
+    // DISABLED: Automatic detection methods
+    /*
     startDetection() {
         // Check immediately
         this.checkForProduct();
@@ -76,7 +102,10 @@ class ClosetOverlay {
         // Watch for DOM changes
         this.setupMutationObserver();
     }
+    */
     
+    // DISABLED: Automatic product checking
+    /*
     async checkForProduct() {
         const wasProductPage = this.isProductPage;
         this.isProductPage = this.detectIfProductPage();
@@ -109,6 +138,7 @@ class ClosetOverlay {
             this.hideOverlay();
         }
     }
+    */
     
     generateItemId(item) {
         // Create a unique ID based on title + URL to prevent duplicates
@@ -560,6 +590,8 @@ class ClosetOverlay {
         this.overlay = null;
     }
     
+    // DISABLED: Automatic URL watching and DOM observation
+    /*
     watchForUrlChanges() {
         let currentUrl = window.location.href;
         
@@ -613,6 +645,7 @@ class ClosetOverlay {
         
         this.observing = true;
     }
+    */
     
     // Utility methods for item detection
     detectTitle() {
