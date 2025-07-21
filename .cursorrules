@@ -1,0 +1,120 @@
+# Cursor Rules for Chrome Extension Project
+
+## Core Principles
+
+### 1. Root Cause Analysis First
+- **ALWAYS investigate the underlying cause, not just the symptom**
+- Before fixing any issue, understand WHY it's happening
+- Trace problems back to their source in the system architecture
+- Consider cascading effects of changes across the entire system
+
+### 2. System Understanding
+- Understand the full request/response flow before making changes
+- Consider how backend, frontend, and extension components interact
+- Review related code in all affected layers (API, database, UI, extension)
+- Check authentication flows and middleware interactions
+
+## Project Architecture
+
+### Backend (Node.js/Express + Prisma)
+- **Database First**: Always check Prisma schema before making data changes
+- **Middleware Chain**: Understand auth, validation, and error handling flow
+- **Logging**: Use structured logging for debugging (check existing patterns)
+- **Error Handling**: Follow established error patterns in utils/errors.ts
+
+### Frontend (React/TypeScript)
+- **Context Management**: Understand AuthContext and AppContext usage
+- **Component Structure**: Follow established patterns in components/
+- **Type Safety**: Always use TypeScript types from types/index.ts
+
+### Chrome Extension
+- **Background Scripts**: Understand background.js and content.js interactions
+- **Message Passing**: Follow established patterns for extension communication
+- **Permissions**: Check manifest.json for required permissions
+
+## Development Guidelines
+
+### Before Making Changes
+1. **Read the logs** - Check existing log output for clues
+2. **Trace the flow** - Follow the request from extension → backend → database
+3. **Check related files** - Don't just fix one file in isolation
+4. **Understand the data model** - Review Prisma schema and relationships
+
+### Code Quality
+- **Error Handling**: Never swallow errors silently
+- **Validation**: Use express-validator patterns consistently
+- **Authentication**: Always verify auth middleware placement
+- **Database**: Use Prisma client properly with proper error handling
+
+### Testing Strategy
+- **Integration Testing**: Test the full flow, not just individual functions
+- **Edge Cases**: Consider null/undefined, empty arrays, invalid inputs
+- **Authentication States**: Test logged in/out scenarios
+- **Browser Compatibility**: Test extension functionality across browsers
+
+## Common Patterns to Follow
+
+### API Endpoints
+- Use consistent route patterns: `/api/v1/resource`
+- Follow RESTful conventions
+- Include proper validation middleware
+- Use structured logging for requests/responses
+
+### Database Operations
+- Always handle Prisma errors properly
+- Use transactions for multi-step operations
+- Consider database constraints and relationships
+- Log database queries in development
+
+### Authentication
+- Validate sessions properly
+- Handle token expiration gracefully
+- Log authentication events
+- Consider security implications of changes
+
+### Error Handling
+- Use the established error classes in utils/errors.ts
+- Provide meaningful error messages
+- Log errors with appropriate context
+- Don't expose internal details to clients
+
+## Debugging Approach
+
+### When Things Break
+1. **Check the logs first** - Look for patterns in error messages
+2. **Reproduce the issue** - Understand the exact steps that cause the problem
+3. **Isolate the component** - Identify which layer is failing
+4. **Check recent changes** - Review git history for related modifications
+5. **Test the fix thoroughly** - Ensure the solution doesn't break other functionality
+
+### Investigation Tools
+- Use Prisma Studio for database inspection
+- Check browser developer tools for extension debugging
+- Review network tab for API call failures
+- Use structured logging output for tracing
+
+## Security Considerations
+- Always validate input data
+- Sanitize user inputs before database operations
+- Check authentication on protected routes
+- Be careful with CORS settings
+- Validate extension permissions
+
+## Performance Guidelines
+- Consider database query optimization
+- Use proper indexes in Prisma schema
+- Minimize API calls from extension
+- Cache frequently accessed data appropriately
+
+## Code Organization
+- Keep related functionality together
+- Use consistent naming conventions
+- Document complex business logic
+- Maintain clean separation of concerns
+
+## Remember
+- **Fix the cause, not the symptom**
+- **Understand before you change**
+- **Test the full flow**
+- **Consider all affected systems**
+- **Document your reasoning**
