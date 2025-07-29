@@ -10,7 +10,8 @@
     "tabs"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "<all_urls>",
+    "http://localhost:8080/*"
   ],
 
   "background": {
@@ -23,7 +24,7 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["closet/closet-content.js", "closet/closet-overlay.js", "closet/closet-floating-icon.js"],
+      "js": ["closet/api-service.js", "closet/closet-content.js", "closet/closet-overlay.js", "closet/closet-floating-icon.js"],
       "run_at": "document_end"
     }
   ],
@@ -37,6 +38,7 @@
         "ai/ai-config.js",
         "dev-config.js",
         "debug-helper.js",
+        "closet/api-service.js",
         "closet/closet-popup.html",
         "closet/closet-popup.js",
         "closet/closet-styles.css",

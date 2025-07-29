@@ -53,4 +53,4 @@ func (h *CollectionHandler) AddItemToCollection(c *gin.Context) {
 // RemoveItemFromCollection removes an item from a collection
 func (h *CollectionHandler) RemoveItemFromCollection(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Remove item from collection - not implemented"})
-} 
+}

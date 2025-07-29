@@ -65,21 +65,19 @@ class ClosetOverlay {
     }
     
     async loadDismissedItems() {
+        // DISABLED: Local storage removed - using API-based authentication instead
+        // Dismissed items are no longer needed since overlay is disabled
         try {
-            const result = await chrome.storage.local.get(['dismissedItems']);
-            if (result.dismissedItems) {
-                this.dismissedItems = new Set(result.dismissedItems);
-            }
+            console.log('Dismissed items tracking disabled - overlay functionality removed');
         } catch (error) {
             console.log('Could not load dismissed items:', error);
         }
     }
     
     async saveDismissedItems() {
+        // DISABLED: Local storage removed - using API-based authentication instead
         try {
-            await chrome.storage.local.set({
-                dismissedItems: Array.from(this.dismissedItems)
-            });
+            console.log('Dismissed items saving disabled - overlay functionality removed');
         } catch (error) {
             console.log('Could not save dismissed items:', error);
         }
@@ -503,11 +501,9 @@ class ClosetOverlay {
         };
         
         try {
-            // Save to storage
-            const result = await chrome.storage.local.get(['closetItems']);
-            const items = result.closetItems || [];
-            items.unshift(itemData);
-            await chrome.storage.local.set({ closetItems: items });
+            // DISABLED: Local storage removed - would need API integration
+            // Since overlay is disabled, this code path is not used
+            console.log('Overlay addToCloset disabled - use extension popup instead');
             
             // Mark this item as dismissed so it won't show again
             if (this.currentItemId) {

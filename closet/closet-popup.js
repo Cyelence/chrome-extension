@@ -20,10 +20,13 @@ class DigitalWardrobe {
     async init() {
         console.log('👗 Initializing Digital Wardrobe...');
         
+        // Wait for API service to be available
+        await this.waitForApiService();
+        
         // Bind event listeners
         this.bindEventListeners();
         
-        // Load data from storage
+        // Load data from API
         await this.loadItems();
         
         // Render initial state
@@ -33,7 +36,38 @@ class DigitalWardrobe {
         // Try to detect item on current page
         this.detectCurrentPageItem();
         
+        // Set up periodic authentication check
+        this.setupAuthCheck();
+        
         console.log('✅ Digital Wardrobe initialized with', this.items.length, 'items');
+    }
+    
+    setupAuthCheck() {
+        // Check authentication status every 30 seconds
+        setInterval(async () => {
+            if (window.apiService?.isAuthenticated()) {
+                // User is authenticated, try to load items if we don't have any
+                if (this.items.length === 0) {
+                    console.log('🔄 Auto-refreshing data for authenticated user...');
+                    await this.refreshAfterAuth();
+                }
+            }
+        }, 30000); // Check every 30 seconds
+    }
+    
+    async waitForApiService() {
+        let attempts = 0;
+        const maxAttempts = 10;
+        
+        while (!window.apiService && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+        }
+        
+        if (!window.apiService) {
+            console.error('API Service not available');
+            this.showNotification('Connection error. Please refresh the page.', 'error');
+        }
     }
     
     bindEventListeners() {
@@ -122,23 +156,51 @@ class DigitalWardrobe {
     
     async loadItems() {
         try {
-            const result = await chrome.storage.local.get(['closetItems']);
-            this.items = result.closetItems || [];
+            if (!window.apiService?.isAuthenticated()) {
+                console.log('User not authenticated, showing empty state');
+                this.items = [];
+                this.filteredItems = [];
+                this.showAuthenticationPrompt();
+                return;
+            }
+            
+            const apiItems = await window.apiService.getItems();
+            this.items = apiItems.map(item => window.apiService.transformItemFromAPI(item));
             this.filteredItems = [...this.items];
-            console.log('📦 Loaded', this.items.length, 'items from storage');
+            console.log('📦 Loaded', this.items.length, 'items from API');
         } catch (error) {
             console.error('Failed to load items:', error);
+            // Show authentication prompt if needed
+            if (error.message.includes('unauthorized') || error.message.includes('401')) {
+                this.showAuthenticationPrompt();
+            }
             this.items = [];
             this.filteredItems = [];
         }
     }
     
-    async saveItems() {
+    // Method to refresh data after authentication
+    async refreshAfterAuth() {
+        console.log('🔄 Refreshing data after authentication...');
+        await this.loadItems();
+        this.updateStats();
+        this.renderItems();
+    }
+    
+    async saveItem(itemData) {
         try {
-            await chrome.storage.local.set({ closetItems: this.items });
-            console.log('💾 Saved', this.items.length, 'items to storage');
+            if (!window.apiService?.isAuthenticated()) {
+                this.showAuthenticationPrompt();
+                throw new Error('User not authenticated');
+            }
+            
+            const apiItem = await window.apiService.createItem(itemData);
+            const transformedItem = window.apiService.transformItemFromAPI(apiItem);
+            console.log('💾 Saved item to API:', transformedItem.title);
+            return transformedItem;
         } catch (error) {
-            console.error('Failed to save items:', error);
+            console.error('Failed to save item:', error);
+            throw error;
         }
     }
     
@@ -202,6 +264,21 @@ class DigitalWardrobe {
         
         document.getElementById('topsCount').textContent = categoryCounts.tops || 0;
         document.getElementById('bottomsCount').textContent = categoryCounts.bottoms || 0;
+        
+        // Update badge in background script
+        this.updateBadge(totalItems);
+    }
+    
+    async updateBadge(count) {
+        try {
+            await chrome.runtime.sendMessage({
+                type: 'UPDATE_BADGE',
+                count: count
+            });
+        } catch (error) {
+            // Ignore badge update errors
+            console.log('Could not update badge:', error);
+        }
     }
     
     renderStats() {
@@ -299,31 +376,33 @@ class DigitalWardrobe {
         
         const itemData = {
             ...this.currentDetectedItem,
-            id: this.generateId(),
             status: 'want',
-            category: 'other',
+            category: this.currentDetectedItem.category || 'other',
             dateAdded: new Date().toISOString(),
             notes: '',
             size: '',
             color: ''
         };
         
-        this.items.unshift(itemData);
-        await this.saveItems();
-        
-        this.updateStats();
-        this.applyFilters();
-        
-        this.showNotification('Item added to your wardrobe!', 'success');
-        
-        // Hide detected item
-        document.getElementById('detectedItemContainer').style.display = 'none';
-        this.currentDetectedItem = null;
+        try {
+            const savedItem = await this.saveItem(itemData);
+            this.items.unshift(savedItem);
+            
+            this.updateStats();
+            this.applyFilters();
+            
+            this.showNotification('Item added to your wardrobe!', 'success');
+            
+            // Hide detected item
+            document.getElementById('detectedItemContainer').style.display = 'none';
+            this.currentDetectedItem = null;
+        } catch (error) {
+            this.showNotification('Failed to add item. Please try again.', 'error');
+        }
     }
     
     async addManualItem() {
         const itemData = {
-            id: this.generateId(),
             title: document.getElementById('itemName').value.trim(),
             brand: document.getElementById('itemBrand').value.trim(),
             category: document.getElementById('itemCategory').value || 'other',
@@ -350,25 +429,29 @@ class DigitalWardrobe {
             return;
         }
         
-        this.items.unshift(itemData);
-        await this.saveItems();
-        
-        this.updateStats();
-        this.applyFilters();
-        
-        // Clear form
-        document.getElementById('itemName').value = '';
-        document.getElementById('itemBrand').value = '';
-        document.getElementById('itemCategory').value = '';
-        document.getElementById('itemPrice').value = '';
-        document.getElementById('itemColor').value = '';
-        document.getElementById('itemSize').value = '';
-        document.getElementById('itemStatus').value = 'want';
-        
-        this.showNotification('Item added to your wardrobe!', 'success');
-        
-        // Switch to closet tab to show the new item
-        this.switchTab('closet');
+        try {
+            const savedItem = await this.saveItem(itemData);
+            this.items.unshift(savedItem);
+            
+            this.updateStats();
+            this.applyFilters();
+            
+            // Clear form
+            document.getElementById('itemName').value = '';
+            document.getElementById('itemBrand').value = '';
+            document.getElementById('itemCategory').value = '';
+            document.getElementById('itemPrice').value = '';
+            document.getElementById('itemColor').value = '';
+            document.getElementById('itemSize').value = '';
+            document.getElementById('itemStatus').value = 'want';
+            
+            this.showNotification('Item added to your wardrobe!', 'success');
+            
+            // Switch to closet tab to show the new item
+            this.switchTab('closet');
+        } catch (error) {
+            this.showNotification('Failed to add item. Please try again.', 'error');
+        }
     }
     
     showItemDetails(item) {
@@ -419,18 +502,30 @@ class DigitalWardrobe {
             updatedItem.datePurchased = new Date().toISOString();
         }
         
-        // Find and update item in array
-        const index = this.items.findIndex(item => item.id === this.currentItem.id);
-        if (index !== -1) {
-            this.items[index] = updatedItem;
-            await this.saveItems();
+        try {
+            if (!window.apiService?.isAuthenticated()) {
+                this.showAuthenticationPrompt();
+                return;
+            }
             
-            // Update UI
-            this.updateStats();
-            this.applyFilters();
+            const apiItem = await window.apiService.updateItem(this.currentItem.id, updatedItem);
+            const transformedItem = window.apiService.transformItemFromAPI(apiItem);
             
-            this.hideModal('itemModal');
-            this.showNotification('Item updated successfully!', 'success');
+            // Find and update item in array
+            const index = this.items.findIndex(item => item.id === this.currentItem.id);
+            if (index !== -1) {
+                this.items[index] = transformedItem;
+                
+                // Update UI
+                this.updateStats();
+                this.applyFilters();
+                
+                this.hideModal('itemModal');
+                this.showNotification('Item updated successfully!', 'success');
+            }
+        } catch (error) {
+            console.error('Failed to update item:', error);
+            this.showNotification('Failed to update item. Please try again.', 'error');
         }
     }
     
@@ -438,16 +533,27 @@ class DigitalWardrobe {
         if (!this.currentItem) return;
         
         if (confirm('Are you sure you want to delete this item from your wardrobe?')) {
-            // Remove from array
-            this.items = this.items.filter(item => item.id !== this.currentItem.id);
-            await this.saveItems();
-            
-            // Update UI
-            this.updateStats();
-            this.applyFilters();
-            
-            this.hideModal('itemModal');
-            this.showNotification('Item deleted from your wardrobe', 'info');
+            try {
+                if (!window.apiService?.isAuthenticated()) {
+                    this.showAuthenticationPrompt();
+                    return;
+                }
+                
+                await window.apiService.deleteItem(this.currentItem.id);
+                
+                // Remove from array
+                this.items = this.items.filter(item => item.id !== this.currentItem.id);
+                
+                // Update UI
+                this.updateStats();
+                this.applyFilters();
+                
+                this.hideModal('itemModal');
+                this.showNotification('Item deleted from your wardrobe', 'info');
+            } catch (error) {
+                console.error('Failed to delete item:', error);
+                this.showNotification('Failed to delete item. Please try again.', 'error');
+            }
         }
     }
     
@@ -470,6 +576,90 @@ class DigitalWardrobe {
         setTimeout(() => {
             modal.classList.add('hidden');
         }, 300);
+    }
+    
+    showAuthenticationPrompt() {
+        // Create authentication prompt
+        const authPrompt = document.createElement('div');
+        authPrompt.className = 'auth-prompt';
+        authPrompt.innerHTML = `
+            <div class="auth-prompt-overlay">
+                <div class="auth-prompt-content">
+                    <h3>Authentication Required</h3>
+                    <p>Please sign in to access your digital wardrobe.</p>
+                    <button id="openWebAppBtn">Open Web App to Sign In</button>
+                    <button id="refreshAfterAuth">I've Signed In - Refresh</button>
+                    <button id="closeAuthPrompt">Close</button>
+                </div>
+            </div>
+        `;
+        authPrompt.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10001;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        `;
+        
+        const content = authPrompt.querySelector('.auth-prompt-content');
+        content.style.cssText = `
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            max-width: 300px;
+        `;
+        
+        const buttons = content.querySelectorAll('button');
+        buttons.forEach((button, index) => {
+            let backgroundColor;
+            if (index === 0) {
+                backgroundColor = '#667eea'; // Primary button
+            } else if (index === 1) {
+                backgroundColor = '#28a745'; // Success button
+            } else {
+                backgroundColor = '#6c757d'; // Secondary button
+            }
+            
+            button.style.cssText = `
+                margin: 5px;
+                padding: 8px 16px;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                background: ${backgroundColor};
+                color: white;
+            `;
+        });
+        
+        // Add event listeners
+        const openWebAppBtn = authPrompt.querySelector('#openWebAppBtn');
+        const refreshBtn = authPrompt.querySelector('#refreshAfterAuth');
+        const closeBtn = authPrompt.querySelector('#closeAuthPrompt');
+        
+        openWebAppBtn.addEventListener('click', () => {
+            // Open the web app in a new tab
+            window.open('http://localhost:3000', '_blank');
+            // Close the prompt
+            authPrompt.remove();
+        });
+        
+        refreshBtn.addEventListener('click', async () => {
+            // Try to refresh the data
+            authPrompt.remove();
+            await this.refreshAfterAuth();
+        });
+        
+        closeBtn.addEventListener('click', () => {
+            authPrompt.remove();
+        });
+        
+        document.body.appendChild(authPrompt);
     }
     
     showNotification(message, type = 'info') {
