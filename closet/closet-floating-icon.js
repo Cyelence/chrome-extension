@@ -7,10 +7,11 @@ class ClosetFloatingIcon {
         this.isVisible = false;
         this.isPopupOpen = false;
         
-        this.init();
+        // Initialize asynchronously
+        this.init().catch(console.error);
     }
     
-    init() {
+    async init() {
         // Only initialize on certain domains (not chrome extension pages)
         if (window.location.hostname === 'chrome-extension') {
             return;
@@ -19,7 +20,13 @@ class ClosetFloatingIcon {
         // Listen for messages from background script
         chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             if (request.type === 'TOGGLE_FLOATING_ICON') {
-                this.toggleVisibility();
+                if (request.visible !== undefined) {
+                    // Use the explicit visibility state from background
+                    this.setVisibility(request.visible);
+                } else {
+                    // Fallback to toggle
+                    this.toggleVisibility();
+                }
                 sendResponse({ success: true });
             }
             return true;
@@ -27,16 +34,16 @@ class ClosetFloatingIcon {
         
         // Wait for page to load
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => this.createFloatingIcon());
+            document.addEventListener('DOMContentLoaded', () => this.createFloatingIcon().catch(console.error));
         } else {
-            this.createFloatingIcon();
+            this.createFloatingIcon().catch(console.error);
         }
         
         // Handle page navigation
         this.watchForUrlChanges();
     }
     
-    createFloatingIcon() {
+    async createFloatingIcon() {
         if (this.isInitialized) return;
         
         // Create floating icon
@@ -63,7 +70,21 @@ class ClosetFloatingIcon {
         document.body.appendChild(this.floatingIcon);
         
         this.isInitialized = true;
-        console.log('🎯 Digital Closet floating icon initialized (hidden)');
+        
+        // Restore visibility state from storage
+        try {
+            const result = await chrome.storage.local.get(['floatingIconVisible']);
+            const shouldBeVisible = result.floatingIconVisible || false;
+            
+            if (shouldBeVisible) {
+                this.setVisibility(true);
+                console.log('🎯 Digital Closet floating icon restored (visible)');
+            } else {
+                console.log('🎯 Digital Closet floating icon initialized (hidden)');
+            }
+        } catch (error) {
+            console.log('Could not restore floating icon state:', error);
+        }
     }
     
     addFloatingIconStyles() {
@@ -270,6 +291,24 @@ class ClosetFloatingIcon {
         }
     }
     
+    setVisibility(visible) {
+        if (!this.floatingIcon) return;
+        
+        this.isVisible = visible;
+        
+        if (this.isVisible) {
+            this.floatingIcon.classList.add('closet-floating-icon-show');
+            console.log('👁️ Floating icon set to visible');
+        } else {
+            this.floatingIcon.classList.remove('closet-floating-icon-show');
+            // Also close popup if it's open
+            if (this.isPopupOpen) {
+                this.closeExtensionPopup();
+            }
+            console.log('🙈 Floating icon set to hidden');
+        }
+    }
+    
     toggleExtensionPopup() {
         if (this.isPopupOpen) {
             this.closeExtensionPopup();
@@ -306,7 +345,7 @@ class ClosetFloatingIcon {
         this.closetPopup.className = 'closet-popup-container';
         this.closetPopup.innerHTML = `
             <div class="closet-popup-header">
-                <h3>Digital Closet Extension</h3>
+                <h3>Digital Closets Extension</h3>
                 <button class="closet-popup-close">&times;</button>
             </div>
             <div class="closet-popup-content">

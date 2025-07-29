@@ -8,6 +8,7 @@ class DigitalWardrobe {
         this.isLoading = false;
         this.activeTab = 'closet';
         this.activeFilter = 'all';
+        this.pendingSync = []; // Items waiting to be synced to backend
         
         // Initialize when DOM is ready
         if (document.readyState === 'loading') {
@@ -20,7 +21,7 @@ class DigitalWardrobe {
     async init() {
         console.log('👗 Initializing Digital Wardrobe...');
         
-        // Wait for API service to be available
+        // Wait for API service to be available (required)
         await this.waitForApiService();
         
         // Bind event listeners
@@ -45,29 +46,32 @@ class DigitalWardrobe {
     setupAuthCheck() {
         // Check authentication status every 30 seconds
         setInterval(async () => {
-            if (window.apiService?.isAuthenticated()) {
+            if (window.apiService && await window.apiService.isAuthenticated()) {
                 // User is authenticated, try to load items if we don't have any
                 if (this.items.length === 0) {
                     console.log('🔄 Auto-refreshing data for authenticated user...');
                     await this.refreshAfterAuth();
+                }
+                
+                // Also try to sync pending items
+                if (this.pendingSync.length > 0) {
+                    console.log('🔄 Auto-syncing pending items...');
+                    await this.syncPendingItems();
                 }
             }
         }, 30000); // Check every 30 seconds
     }
     
     async waitForApiService() {
-        let attempts = 0;
-        const maxAttempts = 10;
-        
-        while (!window.apiService && attempts < maxAttempts) {
-            await new Promise(resolve => setTimeout(resolve, 100));
-            attempts++;
-        }
-        
+        // API service is now loaded directly in popup HTML, so it should always be available
         if (!window.apiService) {
-            console.error('API Service not available');
-            this.showNotification('Connection error. Please refresh the page.', 'error');
+            console.error('❌ API Service failed to load - this should not happen');
+            throw new Error('API Service is required but failed to load');
         }
+        
+        // Wait for API service to initialize
+        await window.apiService.ensureInitialized();
+        console.log('🔌 API Service initialized and ready');
     }
     
     bindEventListeners() {
@@ -156,27 +160,74 @@ class DigitalWardrobe {
     
     async loadItems() {
         try {
-            if (!window.apiService?.isAuthenticated()) {
-                console.log('User not authenticated, showing empty state');
-                this.items = [];
-                this.filteredItems = [];
-                this.showAuthenticationPrompt();
-                return;
-            }
-            
-            const apiItems = await window.apiService.getItems();
-            this.items = apiItems.map(item => window.apiService.transformItemFromAPI(item));
+            // First, load local items from storage
+            const localItems = await this.loadLocalItems();
+            this.items = localItems;
             this.filteredItems = [...this.items];
-            console.log('📦 Loaded', this.items.length, 'items from API');
+            
+            // If user is authenticated, try to sync with backend
+            if (window.apiService && await window.apiService.isAuthenticated()) {
+                try {
+                    const apiItems = await window.apiService.getItems();
+                    const backendItems = apiItems.map(item => window.apiService.transformItemFromAPI(item));
+                    
+                    // Merge local and backend items, avoiding duplicates
+                    const mergedItems = this.mergeItems(localItems, backendItems);
+                    this.items = mergedItems;
+                    this.filteredItems = [...this.items];
+                    
+                    // Save merged items locally
+                    await this.saveLocalItems(this.items);
+                    
+                    console.log('📦 Loaded', this.items.length, 'items (local + backend)');
+                } catch (error) {
+                    console.error('Failed to load from backend:', error);
+                    // Continue with local items only
+                }
+            } else {
+                console.log('📦 Loaded', this.items.length, 'items (local only)');
+            }
         } catch (error) {
             console.error('Failed to load items:', error);
-            // Show authentication prompt if needed
-            if (error.message.includes('unauthorized') || error.message.includes('401')) {
-                this.showAuthenticationPrompt();
-            }
             this.items = [];
             this.filteredItems = [];
         }
+    }
+    
+    async loadLocalItems() {
+        try {
+            const result = await chrome.storage.local.get(['localClosetItems']);
+            return result.localClosetItems || [];
+        } catch (error) {
+            console.error('Failed to load local items:', error);
+            return [];
+        }
+    }
+    
+    async saveLocalItems(items) {
+        try {
+            await chrome.storage.local.set({ localClosetItems: items });
+        } catch (error) {
+            console.error('Failed to save local items:', error);
+        }
+    }
+    
+    mergeItems(localItems, backendItems) {
+        const merged = [...localItems];
+        
+        // Add backend items that don't exist locally
+        backendItems.forEach(backendItem => {
+            const exists = merged.some(localItem => 
+                localItem.id === backendItem.id || 
+                (localItem.title === backendItem.title && localItem.originalUrl === backendItem.originalUrl)
+            );
+            
+            if (!exists) {
+                merged.push(backendItem);
+            }
+        });
+        
+        return merged;
     }
     
     // Method to refresh data after authentication
@@ -185,19 +236,108 @@ class DigitalWardrobe {
         await this.loadItems();
         this.updateStats();
         this.renderItems();
+        
+        // Try to sync pending items
+        if (this.pendingSync.length > 0) {
+            await this.syncPendingItems();
+        }
+    }
+    
+    // Sync pending items to backend
+    async syncPendingItems() {
+        if (!window.apiService || !await window.apiService.isAuthenticated()) {
+            console.log('User not authenticated, cannot sync items');
+            return;
+        }
+        
+        console.log(`🔄 Syncing ${this.pendingSync.length} pending items...`);
+        
+        for (const localItem of this.pendingSync) {
+            try {
+                // Remove local flag and prepare for API
+                const itemData = { ...localItem };
+                delete itemData.isLocal;
+                delete itemData.id; // Let backend generate ID
+                
+                const apiItem = await window.apiService.createItem(itemData);
+                const transformedItem = window.apiService.transformItemFromAPI(apiItem);
+                
+                // Update the local item with backend data
+                const index = this.items.findIndex(item => item.id === localItem.id);
+                if (index !== -1) {
+                    this.items[index] = { ...transformedItem, isLocal: false };
+                }
+                
+                console.log('✅ Synced item:', transformedItem.title);
+            } catch (error) {
+                console.error('Failed to sync item:', localItem.title, error);
+            }
+        }
+        
+        // Clear pending sync and save updated items
+        this.pendingSync = [];
+        await this.saveLocalItems(this.items);
+        this.updateStats();
+        this.renderItems();
+        
+        if (this.pendingSync.length === 0) {
+            this.showNotification('All items synced successfully!', 'success');
+        }
     }
     
     async saveItem(itemData) {
         try {
-            if (!window.apiService?.isAuthenticated()) {
-                this.showAuthenticationPrompt();
-                throw new Error('User not authenticated');
-            }
+            // Generate local ID for the item (temporary until backend assigns real ID)
+            const localItem = {
+                ...itemData,
+                id: this.generateId(),
+                dateAdded: new Date().toISOString(),
+                isLocal: true // Flag to identify local items awaiting sync
+            };
             
-            const apiItem = await window.apiService.createItem(itemData);
-            const transformedItem = window.apiService.transformItemFromAPI(apiItem);
-            console.log('💾 Saved item to API:', transformedItem.title);
-            return transformedItem;
+            // Add to local storage immediately for responsive UI
+            this.items.unshift(localItem);
+            await this.saveLocalItems(this.items);
+            
+            // Update UI immediately
+            this.updateStats();
+            this.applyFilters();
+            
+            console.log('💾 Saved item locally (temporary):', localItem.title);
+            
+            // Try to sync with backend if authenticated
+            if (window.apiService && await window.apiService.isAuthenticated()) {
+                try {
+                    const apiItem = await window.apiService.createItem(itemData);
+                    const transformedItem = window.apiService.transformItemFromAPI(apiItem);
+                    
+                    // Update the local item with backend data
+                    const index = this.items.findIndex(item => item.id === localItem.id);
+                    if (index !== -1) {
+                        this.items[index] = { ...transformedItem, isLocal: false };
+                        await this.saveLocalItems(this.items);
+                        this.updateStats();
+                        this.applyFilters();
+                    }
+                    
+                    // Remove from pending sync since it was successfully synced
+                    this.pendingSync = this.pendingSync.filter(item => item.id !== localItem.id);
+                    
+                    console.log('💾 Synced item to backend:', transformedItem.title);
+                    return transformedItem;
+                } catch (error) {
+                    console.error('Failed to sync with backend:', error);
+                    // Item stays local, will be synced later
+                    this.pendingSync.push(localItem);
+                    this.showNotification('Item saved locally. Will sync when connection is restored.', 'info');
+                    return localItem;
+                }
+            } else {
+                // User not authenticated, show sync prompt
+                this.pendingSync.push(localItem);
+                await this.showSyncPrompt();
+                return localItem;
+            }
         } catch (error) {
             console.error('Failed to save item:', error);
             throw error;
@@ -227,6 +367,7 @@ class DigitalWardrobe {
     createItemCard(item) {
         const statusEmoji = this.getStatusEmoji(item.status);
         const categoryEmoji = this.getCategoryEmoji(item.category);
+        const localIndicator = item.isLocal ? '<div class="local-indicator">📱 Local</div>' : '';
         
         return `
             <div class="wardrobe-item status-${item.status}" data-item-id="${item.id}">
@@ -237,6 +378,7 @@ class DigitalWardrobe {
                 <div class="status-badge">
                     ${statusEmoji} ${item.status.charAt(0).toUpperCase() + item.status.slice(1)}
                 </div>
+                ${localIndicator}
                 ${item.imageUrl ? 
                     `<img src="${item.imageUrl}" alt="${item.title}" class="item-image">` : 
                     `<div class="item-image">${categoryEmoji}</div>`
@@ -385,11 +527,7 @@ class DigitalWardrobe {
         };
         
         try {
-            const savedItem = await this.saveItem(itemData);
-            this.items.unshift(savedItem);
-            
-            this.updateStats();
-            this.applyFilters();
+            await this.saveItem(itemData);
             
             this.showNotification('Item added to your wardrobe!', 'success');
             
@@ -430,11 +568,7 @@ class DigitalWardrobe {
         }
         
         try {
-            const savedItem = await this.saveItem(itemData);
-            this.items.unshift(savedItem);
-            
-            this.updateStats();
-            this.applyFilters();
+            await this.saveItem(itemData);
             
             // Clear form
             document.getElementById('itemName').value = '';
@@ -503,8 +637,8 @@ class DigitalWardrobe {
         }
         
         try {
-            if (!window.apiService?.isAuthenticated()) {
-                this.showAuthenticationPrompt();
+            if (!window.apiService || !await window.apiService.isAuthenticated()) {
+                await this.showAuthenticationPrompt();
                 return;
             }
             
@@ -534,8 +668,8 @@ class DigitalWardrobe {
         
         if (confirm('Are you sure you want to delete this item from your wardrobe?')) {
             try {
-                if (!window.apiService?.isAuthenticated()) {
-                    this.showAuthenticationPrompt();
+                if (!window.apiService || !await window.apiService.isAuthenticated()) {
+                    await this.showAuthenticationPrompt();
                     return;
                 }
                 
@@ -578,22 +712,42 @@ class DigitalWardrobe {
         }, 300);
     }
     
-    showAuthenticationPrompt() {
-        // Create authentication prompt
-        const authPrompt = document.createElement('div');
-        authPrompt.className = 'auth-prompt';
-        authPrompt.innerHTML = `
-            <div class="auth-prompt-overlay">
-                <div class="auth-prompt-content">
-                    <h3>Authentication Required</h3>
-                    <p>Please sign in to access your digital wardrobe.</p>
-                    <button id="openWebAppBtn">Open Web App to Sign In</button>
-                    <button id="refreshAfterAuth">I've Signed In - Refresh</button>
-                    <button id="closeAuthPrompt">Close</button>
+    async showSyncPrompt() {
+        console.log('showSyncPrompt called, checking conditions...');
+        console.log('Pending sync items:', this.pendingSync.length);
+        
+        // Don't show sync prompt if user is already authenticated
+        if (window.apiService && await window.apiService.isAuthenticated()) {
+            console.log('User already authenticated, skipping sync prompt');
+            return;
+        }
+        
+        // Don't show if no items to sync
+        if (this.pendingSync.length === 0) {
+            console.log('No items to sync, skipping sync prompt');
+            return;
+        }
+        
+        console.log('📝 Showing sync prompt for', this.pendingSync.length, 'items');
+        
+        // Create sync prompt
+        const syncPrompt = document.createElement('div');
+        syncPrompt.className = 'sync-prompt';
+        syncPrompt.innerHTML = `
+            <div class="sync-prompt-overlay">
+                <div class="sync-prompt-content">
+                    <h3>Sign in to add to your closet</h3>
+                    <p>Your items are saved locally. Sign in to sync them across all your devices and never lose your wardrobe!</p>
+                    <div class="sync-stats">
+                        <span>📦 ${this.pendingSync.length} items ready to sync</span>
+                    </div>
+                    <button id="openWebAppBtn">Sign In to Sync</button>
+                    <button id="syncLaterBtn">Sync Later</button>
+                    <button id="closeSyncPrompt">Close</button>
                 </div>
             </div>
         `;
-        authPrompt.style.cssText = `
+        syncPrompt.style.cssText = `
             position: fixed;
             top: 0;
             left: 0;
@@ -606,13 +760,23 @@ class DigitalWardrobe {
             justify-content: center;
         `;
         
-        const content = authPrompt.querySelector('.auth-prompt-content');
+        const content = syncPrompt.querySelector('.sync-prompt-content');
         content.style.cssText = `
             background: white;
             padding: 20px;
             border-radius: 8px;
             text-align: center;
-            max-width: 300px;
+            max-width: 350px;
+        `;
+        
+        const syncStats = content.querySelector('.sync-stats');
+        syncStats.style.cssText = `
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-weight: 600;
+            color: #667eea;
         `;
         
         const buttons = content.querySelectorAll('button');
@@ -638,28 +802,33 @@ class DigitalWardrobe {
         });
         
         // Add event listeners
-        const openWebAppBtn = authPrompt.querySelector('#openWebAppBtn');
-        const refreshBtn = authPrompt.querySelector('#refreshAfterAuth');
-        const closeBtn = authPrompt.querySelector('#closeAuthPrompt');
+        const openWebAppBtn = syncPrompt.querySelector('#openWebAppBtn');
+        const syncLaterBtn = syncPrompt.querySelector('#syncLaterBtn');
+        const closeBtn = syncPrompt.querySelector('#closeSyncPrompt');
         
         openWebAppBtn.addEventListener('click', () => {
             // Open the web app in a new tab
             window.open('http://localhost:3000', '_blank');
             // Close the prompt
-            authPrompt.remove();
+            syncPrompt.remove();
         });
         
-        refreshBtn.addEventListener('click', async () => {
-            // Try to refresh the data
-            authPrompt.remove();
-            await this.refreshAfterAuth();
+        syncLaterBtn.addEventListener('click', () => {
+            // Close prompt, items stay local
+            syncPrompt.remove();
+            this.showNotification('Items saved locally. You can sync them later!', 'info');
         });
         
         closeBtn.addEventListener('click', () => {
-            authPrompt.remove();
+            syncPrompt.remove();
         });
         
-        document.body.appendChild(authPrompt);
+        document.body.appendChild(syncPrompt);
+    }
+    
+    async showAuthenticationPrompt() {
+        // For now, just show the sync prompt
+        await this.showSyncPrompt();
     }
     
     showNotification(message, type = 'info') {

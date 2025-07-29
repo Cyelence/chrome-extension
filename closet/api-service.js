@@ -3,7 +3,8 @@ class ApiService {
     constructor() {
         this.baseURL = 'http://localhost:8080/api/v1';
         this.authToken = null;
-        this.init();
+        this.initialized = false;
+        this.initPromise = this.init();
     }
     
     async init() {
@@ -11,8 +12,19 @@ class ApiService {
         try {
             const result = await chrome.storage.local.get(['authToken']);
             this.authToken = result.authToken;
+            if (this.authToken) {
+                console.log('🔑 Auth token loaded from storage');
+            }
         } catch (error) {
             console.log('No auth token found');
+        }
+        this.initialized = true;
+    }
+    
+    // Ensure initialization is complete before any operation
+    async ensureInitialized() {
+        if (!this.initialized) {
+            await this.initPromise;
         }
     }
     
@@ -54,6 +66,7 @@ class ApiService {
     
     // Auth methods
     async login(email, password) {
+        await this.ensureInitialized();
         const data = await this.makeRequest('/auth/login', {
             method: 'POST',
             body: JSON.stringify({ email, password }),
@@ -62,12 +75,14 @@ class ApiService {
         if (data.token) {
             this.authToken = data.token;
             await chrome.storage.local.set({ authToken: this.authToken });
+            console.log('🔑 Auth token saved to storage');
         }
         
         return data;
     }
     
     async register(email, password, fullName) {
+        await this.ensureInitialized();
         const data = await this.makeRequest('/auth/register', {
             method: 'POST',
             body: JSON.stringify({ email, password, fullName }),
@@ -76,12 +91,14 @@ class ApiService {
         if (data.token) {
             this.authToken = data.token;
             await chrome.storage.local.set({ authToken: this.authToken });
+            console.log('🔑 Auth token saved to storage');
         }
         
         return data;
     }
     
     async logout() {
+        await this.ensureInitialized();
         try {
             await this.makeRequest('/auth/logout', { method: 'POST' });
         } catch (error) {
@@ -91,6 +108,7 @@ class ApiService {
         
         this.authToken = null;
         await chrome.storage.local.remove(['authToken']);
+        console.log('🔑 Auth token removed from storage');
     }
     
     async getProfile() {
@@ -208,7 +226,13 @@ class ApiService {
     }
     
     // Utility method to check if user is authenticated
-    isAuthenticated() {
+    async isAuthenticated() {
+        await this.ensureInitialized();
+        return !!this.authToken;
+    }
+    
+    // Synchronous version for quick checks (use carefully)
+    isAuthenticatedSync() {
         return !!this.authToken;
     }
 }

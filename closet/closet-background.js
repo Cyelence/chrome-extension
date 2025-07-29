@@ -5,10 +5,21 @@ chrome.action.onClicked.addListener(async (tab) => {
     console.log('Digital Closet icon clicked - toggling floating icon');
     
     try {
+        // Get current visibility state
+        const result = await chrome.storage.local.get(['floatingIconVisible']);
+        const currentlyVisible = result.floatingIconVisible || false;
+        const newVisibility = !currentlyVisible;
+        
+        // Store new state
+        await chrome.storage.local.set({ floatingIconVisible: newVisibility });
+        
         // Send message to content script to toggle floating icon
         await chrome.tabs.sendMessage(tab.id, { 
-            type: 'TOGGLE_FLOATING_ICON' 
+            type: 'TOGGLE_FLOATING_ICON',
+            visible: newVisibility
         });
+        
+        console.log('Floating icon toggled:', newVisibility ? 'visible' : 'hidden');
     } catch (error) {
         console.log('Could not toggle floating icon:', error.message);
     }
